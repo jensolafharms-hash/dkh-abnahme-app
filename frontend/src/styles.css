@@ -377,3 +377,99 @@ button[class*="primary"]:hover {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+
+/* Dashboard/Abnahmen Seitentrennung */
+.dashboard-home {
+  display: grid;
+  gap: 24px;
+}
+
+.dashboard-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 30px;
+}
+
+.dashboard-welcome h2 {
+  margin: 0 0 8px;
+  font-size: 34px;
+}
+
+.dashboard-panels {
+  display: grid;
+  grid-template-columns: 1.4fr .8fr;
+  gap: 24px;
+}
+
+.dashboard-panels .card {
+  padding: 26px;
+}
+
+.dashboard-panels h3 {
+  margin-top: 0;
+  font-size: 22px;
+}
+
+.dashboard-list {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-list button {
+  text-align: left;
+  border: 1px solid rgba(0, 63, 45, .14);
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.dashboard-list button:hover {
+  background: #F4F9EE;
+}
+
+.dashboard-list strong,
+.dashboard-list span {
+  display: block;
+}
+
+.dashboard-list span {
+  color: #6B7671;
+  margin-top: 4px;
+}
+
+.side-nav button {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  padding: 18px 22px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.side-nav button:hover {
+  background: rgba(255, 255, 255, .10);
+}
+
+.side-nav button.active {
+  background: rgba(255, 255, 255, .14);
+}
+
+@media (max-width: 900px) {
+  .dashboard-welcome {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-panels {
+    grid-template-columns: 1fr;
+  }
+}

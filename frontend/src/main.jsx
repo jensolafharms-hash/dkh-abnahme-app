@@ -77,6 +77,7 @@ function App() {
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('basis');
   const [showProtocol, setShowProtocol] = useState(false);
+  const [view, setView] = useState('dashboard');
   const [syncState, setSyncState] = useState('lokal');
   const remoteLoaded = useRef(false);
   const syncTimer = useRef(null);
@@ -181,6 +182,8 @@ function App() {
     setCases(prev => [c, ...prev]);
     setActiveId(c.id);
     setTab('basis');
+    setShowProtocol(false);
+    setView('abnahmen');
   };
 
   const removeActive = () => {
@@ -214,12 +217,14 @@ function App() {
     setActiveId('');
     setTab('basis');
     setShowProtocol(false);
+    setView('dashboard');
   };
 
   const goAbnahmen = () => {
     if (!activeId && cases[0]) setActiveId(cases[0].id);
     setTab('basis');
     setShowProtocol(false);
+    setView('abnahmen');
   };
 
   return (
@@ -227,10 +232,10 @@ function App() {
       <aside className="brand-sidebar">
         <div className="brand-logo-wrap"><img src="/assets/dkh-logo.png?v=logo-richtig-20260607-1925" alt="DKH Immobilienverwaltung" /></div>
         <nav className="side-nav">
-          <button type="button" className={!activeId ? 'active' : ''} onClick={goDashboard}>Dashboard</button>
-          <button type="button" className={activeId ? 'active' : ''} onClick={goAbnahmen}>Abnahmen</button>
+          <button type="button" className={view === 'dashboard' ? 'active' : ''} onClick={goDashboard}>Dashboard</button>
+          <button type="button" className={view === 'abnahmen' ? 'active' : ''} onClick={goAbnahmen}>Abnahmen</button>
           <button type="button" onClick={() => alert('Wohnungen werden in einer späteren Version ergänzt.')}>Wohnungen</button>
-          <button type="button" onClick={() => { goAbnahmen(); setTab('zaehler'); }}>Zähler</button>
+          <button type="button" onClick={() => { setView('abnahmen'); goAbnahmen(); setTab('zaehler'); }}>Zähler</button>
           <button type="button" onClick={() => active ? setShowProtocol(true) : alert('Bitte zuerst einen Vorgang auswählen.')}>Protokolle</button>
         </nav>
         <div className="contact-card">
@@ -253,47 +258,61 @@ function App() {
           <Stat icon={<CheckCircle2 />} label="Geprüft" value={stats.done} hint="Abgeschlossen" />
         </section>
 
-        <section className="workspace" id="vorgaenge">
-          <aside className="case-panel card">
-            <label className="search-label">Suche
-              <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Suche Einheit, Mieter, Adresse" />
-            </label>
-            <div className="case-list">
-              {filtered.length === 0 && <p className="muted">Keine Vorgänge gefunden.</p>}
-              {filtered.map(item => (
-                <button key={item.id} className={`case-item ${item.id === activeId ? 'active' : ''}`} onClick={() => setActiveId(item.id)}>
-                  <strong>{item.address || 'Neue Wohnung'}</strong>
-                  <span>{item.number} · {item.unit || 'ohne Einheit'}</span>
-                  <em>{item.status}</em>
-                </button>
-              ))}
-            </div>
-          </aside>
+        {view === 'dashboard' ? (
+          <DashboardHome
+            cases={cases}
+            stats={stats}
+            onAdd={addCase}
+            onOpen={(id) => {
+              setActiveId(id);
+              setTab('basis');
+              setShowProtocol(false);
+              setView('abnahmen');
+            }}
+          />
+        ) : (
+          <section className="workspace" id="vorgaenge">
+            <aside className="case-panel card">
+              <label className="search-label">Suche
+                <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Suche Einheit, Mieter, Adresse" />
+              </label>
+              <div className="case-list">
+                {filtered.length === 0 && <p className="muted">Keine Vorgänge gefunden.</p>}
+                {filtered.map(item => (
+                  <button key={item.id} className={`case-item ${item.id === activeId ? 'active' : ''}`} onClick={() => setActiveId(item.id)}>
+                    <strong>{item.address || 'Neue Wohnung'}</strong>
+                    <span>{item.number} · {item.unit || 'ohne Einheit'}</span>
+                    <em>{item.status}</em>
+                  </button>
+                ))}
+              </div>
+            </aside>
 
-          <section className="editor card">
-            {!active ? <EmptyState onAdd={addCase} /> : (
-              <>
-                <div className="editor-head">
-                  <div><p className="eyebrow small">{active.number}</p><h2>{active.address || 'Neuer Vorgang'}</h2></div>
-                  <span className="badge">{active.status}</span>
-                </div>
-                <Tabs value={tab} onChange={setTab} />
-                {tab === 'basis' && <Basis active={active} patch={patchActive} />}
-                {tab === 'raeume' && <Rooms active={active} patch={patchActive} update={updateCollection} />}
-                {tab === 'maengel' && <Defects active={active} patch={patchActive} update={updateCollection} />}
-                {tab === 'zaehler' && <Meters active={active} patch={patchActive} update={updateCollection} />}
-                {tab === 'schluessel' && <Keys active={active} patch={patchActive} update={updateCollection} />}
-                {tab === 'unterschrift' && <Signatures active={active} patch={patchActive} />}
-                <div className="actions">
-                  <button className="danger" onClick={removeActive}><Trash2 size={18} /> Löschen</button>
-                  <button onClick={saveNow}><Save size={18} /> Speichern</button>
-                  <button onClick={() => setShowProtocol(true)}><FileText size={18} /> Protokoll</button>
-                  <button className="primary" onClick={() => patchActive({ status: 'Abgeschlossen' })}><Save size={18} /> Abschließen</button>
-                </div>
-              </>
-            )}
+            <section className="editor card">
+              {!active ? <EmptyState onAdd={addCase} /> : (
+                <>
+                  <div className="editor-head">
+                    <div><p className="eyebrow small">{active.number}</p><h2>{active.address || 'Neuer Vorgang'}</h2></div>
+                    <span className="badge">{active.status}</span>
+                  </div>
+                  <Tabs value={tab} onChange={setTab} />
+                  {tab === 'basis' && <Basis active={active} patch={patchActive} />}
+                  {tab === 'raeume' && <Rooms active={active} patch={patchActive} update={updateCollection} />}
+                  {tab === 'maengel' && <Defects active={active} patch={patchActive} update={updateCollection} />}
+                  {tab === 'zaehler' && <Meters active={active} patch={patchActive} update={updateCollection} />}
+                  {tab === 'schluessel' && <Keys active={active} patch={patchActive} update={updateCollection} />}
+                  {tab === 'unterschrift' && <Signatures active={active} patch={patchActive} />}
+                  <div className="actions">
+                    <button className="danger" onClick={removeActive}><Trash2 size={18} /> Löschen</button>
+                    <button onClick={saveNow}><Save size={18} /> Speichern</button>
+                    <button onClick={() => setShowProtocol(true)}><FileText size={18} /> Protokoll</button>
+                    <button className="primary" onClick={() => patchActive({ status: 'Abgeschlossen' })}><Save size={18} /> Abschließen</button>
+                  </div>
+                </>
+              )}
+            </section>
           </section>
-        </section>
+        )}
       </main>
 
       {showProtocol && active && <ProtocolDialog item={active} onClose={() => setShowProtocol(false)} />}
@@ -331,6 +350,44 @@ function LoginView({ onLogin, error }) {
 
 function Stat({ icon, label, value, hint }) {
   return <article className="stat-card"><span className="stat-icon">{icon}</span><div><span>{label}</span><strong>{value}</strong><small>{hint}</small></div></article>;
+}
+
+function DashboardHome({ cases, stats, onAdd, onOpen }) {
+  const latest = cases.slice(0, 5);
+
+  return <section className="dashboard-home">
+    <article className="card dashboard-welcome">
+      <div>
+        <p className="eyebrow small">Übersicht</p>
+        <h2>Dashboard</h2>
+        <p className="muted">Hier siehst du den aktuellen Stand der Wohnungsabnahmen und Übergaben.</p>
+      </div>
+      <button className="primary" onClick={onAdd}><Plus size={18} /> Neuen Vorgang anlegen</button>
+    </article>
+
+    <div className="dashboard-panels">
+      <article className="card">
+        <h3>Letzte Vorgänge</h3>
+        {latest.length === 0 ? <p className="muted">Noch keine Vorgänge vorhanden.</p> : (
+          <div className="dashboard-list">
+            {latest.map(item => (
+              <button key={item.id} onClick={() => onOpen(item.id)}>
+                <strong>{item.address || 'Neue Wohnung'}</strong>
+                <span>{item.number} · {item.unit || 'ohne Einheit'} · {item.status}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </article>
+
+      <article className="card">
+        <h3>Schnellübersicht</h3>
+        <p className="muted">Offene Vorgänge: <strong>{stats.open}</strong></p>
+        <p className="muted">Vorgänge mit Mängeln: <strong>{stats.defects}</strong></p>
+        <p className="muted">Abgeschlossen: <strong>{stats.done}</strong></p>
+      </article>
+    </div>
+  </section>;
 }
 
 function Tabs({ value, onChange }) {

@@ -473,3 +473,571 @@ button[class*="primary"]:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Exakter DKH-Logo-Gruenwert */
+:root {
+  --dkh-green: #99C11B;
+  --dkh-green-hover: #86A916;
+  --dkh-green-soft: #F1F8E2;
+  --accent: #99C11B;
+  --accent-dark: #86A916;
+  --accent-soft: #F1F8E2;
+}
+
+button.primary,
+.btn-primary,
+.primary,
+.create-button,
+.new-button,
+button[class*="primary"] {
+  background-color: #99C11B !important;
+  border-color: #99C11B !important;
+}
+
+button.primary:hover,
+.btn-primary:hover,
+.primary:hover,
+.create-button:hover,
+.new-button:hover,
+button[class*="primary"]:hover {
+  background-color: #86A916 !important;
+  border-color: #86A916 !important;
+}
+
+.brand-kicker,
+.kicker,
+.eyebrow {
+  color: #7A9A15 !important;
+}
+
+.stat-icon,
+.card-icon,
+.icon-box {
+  background-color: #F1F8E2 !important;
+  color: #7A9A15 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #99C11B !important;
+  box-shadow: 0 0 0 4px rgba(153, 193, 27, .16) !important;
+}
+/* Exakter DKH-Logo-Gruenwert */
+:root {
+  --dkh-green: #99C11B;
+  --dkh-green-hover: #86A916;
+  --dkh-green-soft: #F1F8E2;
+  --accent: #99C11B;
+  --accent-dark: #86A916;
+  --accent-soft: #F1F8E2;
+}
+
+button.primary,
+.btn-primary,
+.primary,
+.create-button,
+.new-button,
+button[class*="primary"] {
+  background-color: #99C11B !important;
+  border-color: #99C11B !important;
+}
+
+button.primary:hover,
+.btn-primary:hover,
+.primary:hover,
+.create-button:hover,
+.new-button:hover,
+button[class*="primary"]:hover {
+  background-color: #86A916 !important;
+  border-color: #86A916 !important;
+}
+
+.brand-kicker,
+.kicker,
+.eyebrow {
+  color: #7A9A15 !important;
+}
+
+.stat-icon,
+.card-icon,
+.icon-box {
+  background-color: #F1F8E2 !important;
+  color: #7A9A15 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #99C11B !important;
+  box-shadow: 0 0 0 4px rgba(153, 193, 27, .16) !important;
+}
+/* Einheitliches DKH Button-System */
+:root {
+  --dkh-green: #99C11B;
+  --dkh-green-hover: #86A916;
+  --dkh-green-active: #789812;
+  --dkh-green-soft: #F1F8E2;
+  --dkh-dark: #003F2D;
+  --dkh-border: rgba(0, 63, 45, .16);
+  --dkh-danger: #C93A3A;
+  --dkh-danger-soft: #FFF0F0;
+}
+
+/* Basis für alle Buttons */
+button {
+  min-height: 44px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid var(--dkh-border);
+  background: #ffffff;
+  color: #09251C;
+  padding: 0 18px;
+  cursor: pointer;
+  transition:
+    background-color .15s ease,
+    border-color .15s ease,
+    color .15s ease,
+    transform .08s ease,
+    box-shadow .15s ease;
+}
+
+button:hover {
+  border-color: rgba(0, 63, 45, .28);
+  background: #F8FBF4;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(153, 193, 27, .22);
+}
+
+/* Primärbuttons */
+button.primary,
+.btn-primary,
+.primary,
+.create-button,
+.new-button,
+button[class*="primary"] {
+  background: var(--dkh-green) !important;
+  border-color: var(--dkh-green) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(153, 193, 27, .22);
+}
+
+button.primary:hover,
+.btn-primary:hover,
+.primary:hover,
+.create-button:hover,
+.new-button:hover,
+button[class*="primary"]:hover {
+  background: var(--dkh-green-hover) !important;
+  border-color: var(--dkh-green-hover) !important;
+  color: #ffffff !important;
+}
+
+button.primary:active,
+.btn-primary:active,
+.primary:active,
+.create-button:active,
+.new-button:active,
+button[class*="primary"]:active {
+  background: var(--dkh-green-active) !important;
+  border-color: var(--dkh-green-active) !important;
+}
+
+/* Sekundärbuttons */
+.actions button:not(.primary):not(.danger),
+.tabs button,
+.editor-head button {
+  background: #ffffff !important;
+  color: #09251C !important;
+  border-color: var(--dkh-border) !important;
+  box-shadow: none !important;
+}
+
+.actions button:not(.primary):not(.danger):hover,
+.tabs button:hover,
+.editor-head button:hover {
+  background: #F8FBF4 !important;
+  border-color: rgba(0, 63, 45, .28) !important;
+}
+
+/* Aktiver Tab */
+.tabs button.active,
+.tabs .active,
+button.active {
+  background: var(--dkh-dark) !important;
+  border-color: var(--dkh-dark) !important;
+  color: #ffffff !important;
+}
+
+/* Löschen/Gefahr */
+button.danger,
+.danger {
+  background: var(--dkh-danger-soft) !important;
+  border-color: rgba(201, 58, 58, .28) !important;
+  color: var(--dkh-danger) !important;
+  box-shadow: none !important;
+}
+
+button.danger:hover,
+.danger:hover {
+  background: #FFE5E5 !important;
+  border-color: rgba(201, 58, 58, .42) !important;
+}
+
+/* Kleine Buttons oben rechts */
+.top-actions button,
+.header-actions button {
+  min-height: 42px;
+  padding-inline: 18px;
+}
+
+/* Neuer Vorgang Button einheitlich, aber prominent */
+.top-actions .primary,
+.header-actions .primary,
+button.new-button,
+button.create-button {
+  min-height: 52px;
+  padding-inline: 28px;
+  font-size: 16px;
+}
+
+/* Action-Leiste unten */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px !important;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.actions button {
+  min-width: 122px;
+}
+
+/* Sidebar-Buttons sind eigene Navigation, nicht Pill-Buttons */
+.side-nav button {
+  min-height: auto !important;
+  border-radius: 16px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  justify-content: flex-start !important;
+  padding: 18px 22px !important;
+}
+
+.side-nav button:hover {
+  background: rgba(255, 255, 255, .10) !important;
+}
+
+.side-nav button.active {
+  background: rgba(255, 255, 255, .14) !important;
+  color: #ffffff !important;
+}
+
+/* Dashboard-Listenbuttons nicht als Aktionsbutton darstellen */
+.dashboard-list button,
+.case-list button,
+.case-item {
+  min-height: auto;
+  border-radius: 16px;
+  justify-content: flex-start;
+  font-size: inherit;
+  font-weight: inherit;
+  padding: 14px 16px;
+}
+
+/* Icons und Akzentflächen */
+.stat-icon,
+.card-icon,
+.icon-box {
+  background-color: var(--dkh-green-soft) !important;
+  color: #789812 !important;
+}
+
+/* Mobile: Buttons groß genug für Touch */
+@media (max-width: 720px) {
+  button {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+/* Header-Buttons vereinheitlichen */
+.app-header button,
+.topbar button,
+.header-actions button {
+  min-height: 48px !important;
+  padding: 0 24px !important;
+  border-radius: 999px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+/* Abmelden als klarer Sekundaerbutton */
+.app-header button:not(.primary),
+.topbar button:not(.primary),
+.header-actions button:not(.primary) {
+  background: #ffffff !important;
+  color: #09251C !important;
+  border: 1px solid rgba(0, 63, 45, .16) !important;
+}
+
+/* Neuer Vorgang bleibt prominent */
+.app-header button.primary,
+.topbar button.primary,
+.header-actions button.primary {
+  min-height: 52px !important;
+  padding: 0 30px !important;
+  background: #99C11B !important;
+  border-color: #99C11B !important;
+  color: #ffffff !important;
+}
+/* Abmelden exakt wie Neuer Vorgang dimensionieren */
+button,
+button.primary {
+  white-space: nowrap;
+}
+
+button:has(+ .primary),
+.app-header button,
+.topbar button,
+.header-actions button {
+  min-height: 52px !important;
+  height: 52px !important;
+  padding: 0 30px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+}
+
+/* Header: Abmelden und Neuer Vorgang gleiche Größe */
+header button,
+.main-header button,
+.page-header button {
+  min-height: 52px !important;
+  height: 52px !important;
+  padding-left: 30px !important;
+  padding-right: 30px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+}
+
+/* Abmelden bleibt weißer Sekundärbutton */
+header button:not(.primary),
+.main-header button:not(.primary),
+.page-header button:not(.primary) {
+  background: #ffffff !important;
+  color: #09251C !important;
+  border: 1px solid rgba(0, 63, 45, .16) !important;
+  box-shadow: none !important;
+}
+
+/* Neuer Vorgang bleibt grün */
+header button.primary,
+.main-header button.primary,
+.page-header button.primary {
+  background: #99C11B !important;
+  border-color: #99C11B !important;
+  color: #ffffff !important;
+}
+
+/* Final: Abmelden exakt wie Header-Hauptbutton dimensionieren */
+.logout-button {
+  min-height: 52px !important;
+  height: 52px !important;
+  padding: 0 30px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  background: #ffffff !important;
+  color: #09251C !important;
+  border: 1px solid rgba(0, 63, 45, .16) !important;
+  box-shadow: none !important;
+}
+
+/* Header-Aktionsbereich sauber ausrichten */
+.top-actions,
+.header-actions,
+.app-header-actions,
+.header-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+/* Neuer Vorgang und Abmelden optisch gleich hoch */
+.logout-button,
+button.primary {
+  min-height: 52px !important;
+  height: 52px !important;
+}
+
+/* Finaler Header-Button-Fix direkt */
+.header-actions-final {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 16px !important;
+  flex-wrap: nowrap !important;
+}
+
+.header-status {
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+  color: #09251C !important;
+  white-space: nowrap !important;
+}
+
+.app-header .header-button,
+.app-header .logout-button,
+.app-header .header-button-primary {
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 30px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.app-header .logout-button {
+  background: #ffffff !important;
+  color: #09251C !important;
+  border: 1px solid rgba(0, 63, 45, .16) !important;
+  box-shadow: none !important;
+}
+
+.app-header .header-button-primary {
+  background: #99C11B !important;
+  border: 1px solid #99C11B !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(153, 193, 27, .22) !important;
+}
+/* Header Buttons final: gleiche Groesse, Neuer Vorgang gruen */
+.app-header .header-actions,
+.app-header .header-actions-final {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 16px !important;
+}
+
+.app-header .header-actions button,
+.app-header .header-actions-final button,
+.app-header .logout-button,
+.app-header .header-button,
+.app-header .header-button-primary {
+  height: 52px !important;
+  min-height: 52px !important;
+  min-width: 178px !important;
+  padding: 0 30px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+/* Abmelden weiss */
+.app-header .logout-button {
+  background: #ffffff !important;
+  color: #09251C !important;
+  border: 1px solid rgba(0, 63, 45, .16) !important;
+  box-shadow: none !important;
+}
+
+/* Neuer Vorgang gruen */
+.app-header .header-button-primary,
+.app-header .header-actions button.primary,
+.app-header .header-actions-final button.primary,
+.app-header .header-actions-final button:last-child,
+.app-header .header-actions button:last-child {
+  background: #99C11B !important;
+  border: 1px solid #99C11B !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(153, 193, 27, .22) !important;
+}
+
+.app-header .header-button-primary:hover,
+.app-header .header-actions button.primary:hover,
+.app-header .header-actions-final button.primary:hover,
+.app-header .header-actions-final button:last-child:hover,
+.app-header .header-actions button:last-child:hover {
+  background: #86A916 !important;
+  border-color: #86A916 !important;
+}
+/* Final: beide Header-Buttons gleich gross und gruen */
+.app-header .header-actions button,
+.app-header .header-actions-final button,
+.app-header .header-button,
+.app-header .logout-button,
+.app-header .header-button-primary {
+  height: 52px !important;
+  min-height: 52px !important;
+  min-width: 178px !important;
+  padding: 0 30px !important;
+  border-radius: 999px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  background: #99C11B !important;
+  border: 1px solid #99C11B !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(153, 193, 27, .22) !important;
+}
+
+.app-header .header-actions button:hover,
+.app-header .header-actions-final button:hover,
+.app-header .header-button:hover,
+.app-header .logout-button:hover,
+.app-header .header-button-primary:hover {
+  background: #86A916 !important;
+  border-color: #86A916 !important;
+  color: #ffffff !important;
+}

@@ -248,7 +248,7 @@ function App() {
       <main className="content-shell">
         <header className="app-header">
           <div><p className="eyebrow">Abnahmeportal</p><h1>Wohnungsabnahme</h1></div>
-          <div className="header-actions"><span>{syncStateLabel(syncState)} · Willkommen, {auth.user?.name || 'Admin'}</span><button onClick={logout}>Abmelden</button><button className="primary" onClick={addCase}><Plus size={18} /> Neuer Vorgang</button></div>
+          <div className="header-actions header-actions-final"><span className="header-status">{syncStateLabel(syncState)} · Willkommen, {auth.user?.name || 'Admin'}</span><button type="button" onClick={logout} className="header-button header-button-primary logout-button">Abmelden</button><button type="button" className="header-button header-button-primary" onClick={addCase}><Plus size={18} /> Neuer Vorgang</button></div>
         </header>
 
         <section className="stats-grid" aria-label="Kennzahlen">

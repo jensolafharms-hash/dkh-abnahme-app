@@ -190,16 +190,48 @@ function App() {
     setActiveId(next[0]?.id || '');
   };
 
+  const saveNow = async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
+
+    if (!auth?.token || !remoteLoaded.current) {
+      setSyncState('lokal');
+      alert('Vorgang wurde lokal gespeichert.');
+      return;
+    }
+
+    try {
+      setSyncState('speichere');
+      await api('/api/cases', { method: 'PUT', body: JSON.stringify({ cases }) });
+      setSyncState('synchronisiert');
+      alert('Vorgang wurde gespeichert.');
+    } catch {
+      setSyncState('offline');
+      alert('Vorgang wurde lokal gespeichert. Der Server ist aktuell nicht erreichbar.');
+    }
+  };
+
+  const goDashboard = () => {
+    setActiveId('');
+    setTab('basis');
+    setShowProtocol(false);
+  };
+
+  const goAbnahmen = () => {
+    if (!activeId && cases[0]) setActiveId(cases[0].id);
+    setTab('basis');
+    setShowProtocol(false);
+  };
+
   return (
     <div className="app-shell">
       <aside className="brand-sidebar">
         <div className="brand-logo-wrap"><img src="/assets/dkh-logo.png?v=logo-richtig-20260607-1925" alt="DKH Immobilienverwaltung" /></div>
         <nav className="side-nav">
-          <a className="active" href="#dashboard">Dashboard</a>
-          <a href="#vorgaenge">Abnahmen</a>
-          <a href="#wohnungen">Wohnungen</a>
-          <a href="#zaehler">Zähler</a>
-          <a href="#protokolle">Protokolle</a>
+          <button type="button" className={!activeId ? 'active' : ''} onClick={goDashboard}>Dashboard</button>
+          <button type="button" className={activeId ? 'active' : ''} onClick={goAbnahmen}>Abnahmen</button>
+          <button type="button" onClick={() => alert('Wohnungen werden in einer späteren Version ergänzt.')}>Wohnungen</button>
+          <button type="button" onClick={() => { goAbnahmen(); setTab('zaehler'); }}>Zähler</button>
+          <button type="button" onClick={() => active ? setShowProtocol(true) : alert('Bitte zuerst einen Vorgang auswählen.')}>Protokolle</button>
         </nav>
         <div className="contact-card">
           <strong>DKH-Immobilienverwaltung</strong><br />
@@ -254,8 +286,9 @@ function App() {
                 {tab === 'unterschrift' && <Signatures active={active} patch={patchActive} />}
                 <div className="actions">
                   <button className="danger" onClick={removeActive}><Trash2 size={18} /> Löschen</button>
+                  <button onClick={saveNow}><Save size={18} /> Speichern</button>
                   <button onClick={() => setShowProtocol(true)}><FileText size={18} /> Protokoll</button>
-                  <button className="primary" onClick={() => patchActive({ status: 'Abgeschlossen' })}><Save size={18} /> AbschlieÃŸen</button>
+                  <button className="primary" onClick={() => patchActive({ status: 'Abgeschlossen' })}><Save size={18} /> Abschließen</button>
                 </div>
               </>
             )}
@@ -314,7 +347,7 @@ function Basis({ active, patch }) {
   return <div className="panel-grid">
     <label>Vorgangstyp<select {...bind('type')}><option>Wohnungsabnahme Auszug</option><option>Wohnungsübergabe Einzug</option><option>Zwischenabnahme</option><option>Sonstige Begehung</option></select></label>
     <label>Status<select {...bind('status')}><option>Entwurf</option><option>Geplant</option><option>In Bearbeitung</option><option>Abgeschlossen</option></select></label>
-    <label>Objektadresse<input {...bind('address')} placeholder="StraÃŸe, PLZ Ort" /></label>
+    <label>Objektadresse<input {...bind('address')} placeholder="Straße, PLZ Ort" /></label>
     <label>Wohnung / Einheit<input {...bind('unit')} placeholder="z. B. WE-204" /></label>
     <label>Termin<input type="datetime-local" {...bind('date')} /></label>
     <label>Verantwortlich<input {...bind('responsible')} placeholder="Name" /></label>
@@ -446,7 +479,7 @@ function PhotoInput({ photo, onPhoto }) {
 function ProtocolDialog({ item, onClose }) {
   return <div className="dialog-backdrop" role="dialog" aria-modal="true">
     <div className="dialog">
-      <div className="dialog-header"><h2>Übergabeprotokoll</h2><div><button onClick={() => window.print()}><Printer size={17} /> Drucken / PDF</button><button onClick={onClose}>SchlieÃŸen</button></div></div>
+      <div className="dialog-header"><h2>Übergabeprotokoll</h2><div><button onClick={() => window.print()}><Printer size={17} /> Drucken / PDF</button><button onClick={onClose}>Schließen</button></div></div>
       <Protocol item={item} />
     </div>
   </div>;

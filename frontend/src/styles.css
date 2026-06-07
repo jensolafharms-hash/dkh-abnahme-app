@@ -320,3 +320,60 @@ button[class*="primary"]:hover {
   background-color: #EEF6D9 !important;
   color: #6F8F10 !important;
 }
+
+/* Sidebar echte Buttons */
+.side-nav button {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  padding: 18px 22px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.side-nav button:hover {
+  background: rgba(255, 255, 255, .10);
+}
+
+.side-nav button.active {
+  background: rgba(255, 255, 255, .14);
+}
+
+
+/* Finale Sidebar-Navigation als echte Buttons */
+.side-nav a {
+  display: none !important;
+}
+
+.side-nav button {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  padding: 18px 22px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.side-nav button:hover {
+  background: rgba(255, 255, 255, .10);
+}
+
+.side-nav button.active {
+  background: rgba(255, 255, 255, .14);
+}
+
+/* Action-Buttons lesbarer */
+.actions {
+  gap: 10px;
+  flex-wrap: wrap;
+}

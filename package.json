@@ -1,0 +1,19 @@
+{
+  "name": "dkh-abnahme-fullstack",
+  "version": "0.3.0-local-dev",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev": "npm run setup && concurrently -n backend,frontend -c green,blue \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "start": "npm run setup && cd backend && npm start",
+    "reset:local": "node scripts/reset-local-data.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

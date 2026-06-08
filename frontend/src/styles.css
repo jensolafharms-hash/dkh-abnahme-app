@@ -1041,3 +1041,246 @@ button.primary {
   border-color: #86A916 !important;
   color: #ffffff !important;
 }
+/* Mobile- und Tablet-Optimierung */
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 220px 1fr !important;
+  }
+
+  .content-shell {
+    padding: 22px !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .workspace {
+    grid-template-columns: 280px 1fr !important;
+    gap: 18px !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    display: block !important;
+  }
+
+  .sidebar {
+    position: relative !important;
+    width: auto !important;
+    min-height: auto !important;
+    border-radius: 0 0 26px 26px !important;
+    padding: 18px !important;
+  }
+
+  .brand-logo-wrap {
+    max-width: 180px !important;
+    margin: 0 auto 14px !important;
+  }
+
+  .side-nav {
+    display: flex !important;
+    gap: 10px !important;
+    overflow-x: auto !important;
+    padding-bottom: 4px !important;
+  }
+
+  .side-nav button {
+    flex: 0 0 auto !important;
+    padding: 12px 16px !important;
+    min-height: 44px !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+  }
+
+  .contact-card {
+    display: none !important;
+  }
+
+  .content-shell {
+    padding: 18px !important;
+  }
+
+  .app-header {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    align-items: stretch !important;
+  }
+
+  .header-actions,
+  .header-actions-final {
+    justify-content: stretch !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  .header-status {
+    width: 100% !important;
+    font-size: 14px !important;
+  }
+
+  .app-header .header-actions button,
+  .app-header .header-actions-final button,
+  .app-header .header-button,
+  .app-header .logout-button,
+  .app-header .header-button-primary {
+    flex: 1 1 160px !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  .stat-card {
+    padding: 18px !important;
+  }
+
+  .stat-card strong {
+    font-size: 26px !important;
+  }
+
+  .dashboard-welcome {
+    padding: 22px !important;
+  }
+
+  .dashboard-welcome h2 {
+    font-size: 28px !important;
+  }
+
+  .dashboard-panels {
+    grid-template-columns: 1fr !important;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr !important;
+  }
+
+  .case-panel {
+    order: 1;
+  }
+
+  .editor {
+    order: 2;
+  }
+
+  .case-list {
+    max-height: 260px !important;
+    overflow: auto !important;
+  }
+
+  .tabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    gap: 10px !important;
+    padding-bottom: 6px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tabs button {
+    flex: 0 0 auto !important;
+    min-height: 48px !important;
+    padding: 0 18px !important;
+    white-space: nowrap !important;
+  }
+
+  .form-grid,
+  .grid,
+  .two-col,
+  .three-col {
+    grid-template-columns: 1fr !important;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 48px !important;
+    font-size: 16px !important;
+  }
+
+  textarea {
+    min-height: 110px !important;
+  }
+
+  .actions {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 20 !important;
+    background: rgba(255, 255, 255, .96) !important;
+    backdrop-filter: blur(10px) !important;
+    border-top: 1px solid rgba(0, 63, 45, .10) !important;
+    padding: 12px 0 4px !important;
+  }
+
+  .actions button {
+    flex: 1 1 calc(50% - 8px) !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .content-shell {
+    padding: 14px !important;
+  }
+
+  .sidebar {
+    padding: 14px !important;
+  }
+
+  .brand-logo-wrap {
+    max-width: 150px !important;
+  }
+
+  .app-header h1 {
+    font-size: 28px !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-welcome {
+    align-items: stretch !important;
+  }
+
+  .dashboard-welcome button {
+    width: 100% !important;
+  }
+
+  .dashboard-panels .card,
+  .editor.card,
+  .case-panel.card {
+    padding: 18px !important;
+    border-radius: 22px !important;
+  }
+
+  .editor-head {
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .actions button {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  .dialog {
+    width: calc(100vw - 18px) !important;
+    max-height: calc(100vh - 18px) !important;
+    border-radius: 22px !important;
+  }
+
+  .dialog-header {
+    display: grid !important;
+    gap: 12px !important;
+  }
+
+  .signature-card canvas {
+    width: 100% !important;
+    height: 180px !important;
+  }
+}

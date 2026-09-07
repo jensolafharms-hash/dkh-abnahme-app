@@ -1,0 +1,78 @@
+{
+  "album": "Isla Blanca – Balearic Chill Sessions",
+  "license": "CC0-1.0",
+  "tracks": [
+    {
+      "nr": 1,
+      "title": "Cala Salada Sunrise",
+      "bpm": 98,
+      "seed": 1101,
+      "key": "A minor",
+      "duration_s": 265.6,
+      "file": "01-cala-salada-sunrise.mp3"
+    },
+    {
+      "nr": 2,
+      "title": "Es Vedrà Horizon",
+      "bpm": 106,
+      "seed": 2202,
+      "key": "D dorian",
+      "duration_s": 255.1,
+      "file": "02-es-vedra-horizon.mp3"
+    },
+    {
+      "nr": 3,
+      "title": "Salinas Breeze",
+      "bpm": 112,
+      "seed": 3303,
+      "key": "B minor",
+      "duration_s": 254.6,
+      "file": "03-salinas-breeze.mp3"
+    },
+    {
+      "nr": 4,
+      "title": "Benirràs Drum Circle",
+      "bpm": 102,
+      "seed": 4404,
+      "key": "G dorian",
+      "duration_s": 234.2,
+      "file": "04-benirras-drum-circle.mp3"
+    },
+    {
+      "nr": 5,
+      "title": "White Isle Nights",
+      "bpm": 118,
+      "seed": 5505,
+      "key": "A minor",
+      "duration_s": 268.4,
+      "file": "05-white-isle-nights.mp3"
+    },
+    {
+      "nr": 6,
+      "title": "Formentera Ferry",
+      "bpm": 94,
+      "seed": 6606,
+      "key": "E major",
+      "duration_s": 258.8,
+      "file": "06-formentera-ferry.mp3"
+    },
+    {
+      "nr": 7,
+      "title": "Dalt Vila Echoes",
+      "bpm": 110,
+      "seed": 7707,
+      "key": "C minor",
+      "duration_s": 246.0,
+      "file": "07-dalt-vila-echoes.mp3"
+    },
+    {
+      "nr": 8,
+      "title": "Playa d'en Bossa, 6 a.m.",
+      "bpm": 96,
+      "seed": 8808,
+      "key": "F dorian",
+      "duration_s": 261.0,
+      "file": "08-playa-d-en-bossa-6-a-m.mp3"
+    }
+  ]
+}

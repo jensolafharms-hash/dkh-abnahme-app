@@ -1,0 +1,80 @@
+{
+  "album": "Sounds of Marbella 2026",
+  "artist": "DJ Jensi",
+  "year": 2026,
+  "license": "CC0-1.0",
+  "tracks": [
+    {
+      "nr": 1,
+      "title": "La Fontanilla Sunrise",
+      "bpm": 118,
+      "key": "E phrygisch",
+      "seed": 1101,
+      "duration_s": 193.5,
+      "file": "01-la-fontanilla-sunrise.mp3"
+    },
+    {
+      "nr": 2,
+      "title": "La Concha Horizon",
+      "bpm": 122,
+      "key": "D-Moll, andalusische Kadenz",
+      "seed": 2202,
+      "duration_s": 179.6,
+      "file": "02-la-concha-horizon.mp3"
+    },
+    {
+      "nr": 3,
+      "title": "Golden Mile Breeze",
+      "bpm": 124,
+      "key": "G mixolydisch, Rumba",
+      "seed": 3303,
+      "duration_s": 167.7,
+      "file": "03-golden-mile-breeze.mp3"
+    },
+    {
+      "nr": 4,
+      "title": "Cabopino Drum Circle",
+      "bpm": 120,
+      "key": "A phrygisch-dominant",
+      "seed": 4404,
+      "duration_s": 177.7,
+      "file": "04-cabopino-drum-circle.mp3"
+    },
+    {
+      "nr": 5,
+      "title": "Puerto Banús Nights",
+      "bpm": 122,
+      "key": "A-Moll",
+      "seed": 5505,
+      "duration_s": 179.6,
+      "file": "05-puerto-banus-nights.mp3"
+    },
+    {
+      "nr": 6,
+      "title": "Sierra Blanca Drift",
+      "bpm": 118,
+      "key": "E dorisch",
+      "seed": 6606,
+      "duration_s": 185.3,
+      "file": "06-sierra-blanca-drift.mp3"
+    },
+    {
+      "nr": 7,
+      "title": "Casco Antiguo Echoes",
+      "bpm": 124,
+      "key": "H phrygisch",
+      "seed": 7707,
+      "duration_s": 176.9,
+      "file": "07-casco-antiguo-echoes.mp3"
+    },
+    {
+      "nr": 8,
+      "title": "Playa de Nagüeles, 6 a.m.",
+      "bpm": 116,
+      "key": "D dorisch",
+      "seed": 8808,
+      "duration_s": 198.1,
+      "file": "08-playa-de-nagueles-6-a-m.mp3"
+    }
+  ]
+}

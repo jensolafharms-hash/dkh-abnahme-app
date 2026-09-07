@@ -20,13 +20,13 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import generate_album as ga  # noqa: E402
+import compose_song as cs  # noqa: E402
 
 ARTIST = "DJ Jensi"
 TITLE_A = "Sounds of"
 TITLE_B = "Marbella"
 YEAR = "2026"
-TAGLINE = "Balearic Chill  ·  House  ·  Acid  ·  Trance"
+TAGLINE = "Balearic House  ·  Spanish Guitar  ·  Acid  ·  Trumpet"
 
 IMPRESSUM = {
     "Künstler": "DJ Jensi",
@@ -260,12 +260,10 @@ def center_text(d, img_w, y, s, fnt, fill, spacing=0):
 def track_data():
     rows = []
     total = 0.0
-    for spec in ga.TRACKS:
-        tr = ga.Track(spec)
-        dur = tr.n / ga.SR
+    for spec in cs.SONGS:
+        dur = cs.song_duration(spec)
         total += dur
-        key = f"{['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'][spec['root'] % 12]} {spec['scale']}"
-        rows.append(dict(nr=spec["nr"], title=spec["title"], bpm=spec["bpm"], key=key, dur=dur))
+        rows.append(dict(nr=spec["nr"], title=spec["title"], bpm=spec["bpm"], key=spec["mode"], dur=dur))
     return rows, total
 
 

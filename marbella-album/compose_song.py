@@ -27,6 +27,67 @@ from generate_album import (SR, place, to_stereo, lowpass, reverb, delay, chorus
                             midi_to_hz)
 
 # --------------------------------------------------------------------------- #
+# Zusätzliche "akustische" Instrumente (physikalisch/additiv modelliert)
+# --------------------------------------------------------------------------- #
+def nylon_guitar(rng, midi, n_hold, level=0.4, pan=0.0):
+    """Wärmer gedämpfte Saite, an Konzertgitarre angelehnt."""
+    sig = ks_guitar(rng, midi, n_hold, level=level, damp=0.9935, pan=pan)
+    return lowpass(sig, 4200.0)
+
+
+def strum_chord(rng, midis, n_hold, level=0.3, spread=0.016, pan=0.0, down=True):
+    """Angeschlagener Gitarrenakkord: Saiten zeitlich versetzt."""
+    order = list(midis) if down else list(midis)[::-1]
+    n = n_hold + int(1.4 * SR) + int(spread * SR * len(order))
+    out = np.zeros((n, 2))
+    for i, m in enumerate(order):
+        place(out, int(i * spread * SR), nylon_guitar(rng, m, n_hold, level=level * (0.8 + 0.2 * (i == 0)), pan=pan + (i - len(order) / 2) * 0.07))
+    return out
+
+
+def steel_drum(rng, midi, n_hold, level=0.3, pan=0.0):
+    """Steel-Pan: metallische Teiltöne, kurzer Tonhöhen-Bend im Anschlag."""
+    f = float(midi_to_hz(midi))
+    n = n_hold + int(1.4 * SR)
+    t = np.arange(n) / SR
+    bend = 1.0 + 0.012 * np.exp(-t * 40.0)
+    x = np.zeros(n)
+    for ratio, amp, dec in ((1.0, 1.0, 2.2), (2.0, 0.55, 3.5), (3.0, 0.3, 5.0), (4.05, 0.18, 7.0), (5.6, 0.08, 9.0)):
+        ph = np.cumsum(f * ratio * bend) / SR
+        x += amp * np.sin(2 * np.pi * ph + rng.random() * 6.28) * np.exp(-t * dec)
+    x += 0.2 * ga.highpass(rng.standard_normal(n), 3000.0) * np.exp(-t * 90.0)
+    env = ga.fit(ga.envelope(n_hold, 0.002, 0.6, 0.5, 0.9), n)
+    x = ga.soft_clip(x * env * 1.2, 1.4)
+    return to_stereo(x * level, pan)
+
+
+def flute(rng, midi, n_hold, level=0.3, pan=0.0):
+    """Flötenartig: Sinus mit Oberton, Atemrauschen, einsetzendes Vibrato."""
+    f = float(midi_to_hz(midi))
+    n = n_hold + int(0.5 * SR)
+    t = np.arange(n) / SR
+    vib = 1.0 + 0.004 * np.sin(2 * np.pi * 5.0 * t) * np.clip((t - 0.15) / 0.3, 0.0, 1.0)
+    ph = np.cumsum(f * vib) / SR
+    x = np.sin(2 * np.pi * ph) + 0.25 * np.sin(2 * np.pi * 2 * ph) + 0.08 * np.sin(2 * np.pi * 3 * ph)
+    breath = ga.bandpass(rng.standard_normal(n), f * 0.7, f * 1.6) * 0.18
+    breath *= 1.0 + 1.5 * np.exp(-t * 12.0)  # Anblasgeräusch
+    env = ga.fit(ga.envelope(n_hold, 0.07, 0.2, 0.85, 0.22), n)
+    x = (x + breath) * env
+    return to_stereo(lowpass(x, 7000.0) * level, pan)
+
+
+def pluck_bass(rng, midi, n_hold, level=0.6):
+    """E-Bass: gezupfte Saite mit Tiefpass, Sub-Anteil und weicher Sättigung."""
+    sig = ks_guitar(rng, midi, n_hold, level=1.0, damp=0.998, pan=0.0)
+    n = len(sig)
+    t = np.arange(n) / SR
+    x = lowpass(sig[:, 0], 900.0)
+    x += 0.5 * np.sin(2 * np.pi * float(midi_to_hz(midi)) * t) * ga.fit(ga.envelope(n_hold, 0.005, 0.3, 0.7, 0.15), n)
+    x = ga.soft_clip(x * 1.6, 1.5)
+    return to_stereo(ga.highpass(x, 30.0) * level, 0.0)
+
+
+# --------------------------------------------------------------------------- #
 # Notation
 #   Melodien: Liste von 4-Takt-Phrasen; jede Phrase = [(pos8, halbton, dauer8), ...]
 #   pos8 = Achtelposition innerhalb der Phrase (0..31), halbton relativ zum Grundton
@@ -81,7 +142,7 @@ SECTIONS = [
 ]
 
 ROOT = 57      # A3
-BPM = 110
+BPM = 122
 SEED = 5505
 
 
@@ -102,7 +163,7 @@ class Song:
         self.total_bars = len(self.bar_len)
         self.n = int((self.bar_start[-1] + 10.0) * SR)
         self.layers = {k: np.zeros((self.n, 2)) for k in
-                       ("drums", "perc", "bass", "pad", "keys", "pluck", "lead", "guitar", "atmos", "acid", "stab", "trance")}
+                       ("drums", "perc", "bass", "pad", "keys", "pluck", "lead", "guitar", "atmos", "acid", "stab", "trance", "flute", "steel")}
         self.kick_times = []
 
     # ---- Zeit ---------------------------------------------------------------
@@ -136,7 +197,11 @@ class Song:
                 elif instrument == "pluck":
                     sig = pluck(rng, midi, hold, level=vel, brightness=2600.0, pan=pan)
                 elif instrument == "guitar":
-                    sig = ks_guitar(rng, midi, hold, level=vel, pan=pan)
+                    sig = nylon_guitar(rng, midi, hold, level=vel, pan=pan)
+                elif instrument == "flute":
+                    sig = flute(rng, midi, hold, level=vel, pan=pan)
+                elif instrument == "steel":
+                    sig = steel_drum(rng, midi, hold, level=vel, pan=pan)
                 else:
                     raise ValueError(instrument)
                 place(self.layers[layer], self.s(bar, st) + off, sig)
@@ -155,9 +220,9 @@ class Song:
                 st = (pos8 % 8) * 2 + 2
                 for k in range(min(3, dur8 - 1)):
                     m = root + 24 + tones[(2 - k) % len(tones)]
-                    place(self.layers["pluck"], self.s(bar, st + 2 * k),
-                          pluck(rng, m, self.step_len(bar, 1.2), level=level * (0.9 - 0.2 * k),
-                                pan=-0.4 if k % 2 else 0.4))
+                    place(self.layers["steel"], self.s(bar, st + 2 * k),
+                          steel_drum(rng, m - 12, self.step_len(bar, 2), level=level * (0.9 - 0.2 * k),
+                                     pan=-0.4 if k % 2 else 0.4))
 
     # ---- Rendering ----------------------------------------------------------
     def render(self):
@@ -171,6 +236,7 @@ class Song:
         ride_s = ride(rng, 0.12)
         crash_s = crash(rng, 0.3)
         rim_s = rim(rng, 0.18)
+        congas = [ga.conga(rng, f, 0.5, pn) for f, pn in ((190.0, -0.4), (240.0, 0.4), (150.0, 0.1))]
 
         ocean_sig, wave_env = ocean(rng, self.n, level=0.24)
         self.wave_env = wave_env
@@ -200,55 +266,44 @@ class Song:
             def chord_tones(b, _prog=prog):
                 return CHORDS[_prog[(b - sec_start) % len(_prog)]]
 
-            house = name in ("verse2", "refrain1", "refrain2", "climax")
-            full_hats = name in ("refrain1", "refrain2", "climax")
-            soft_kick = name in ("verse1",) or (name == "coda")
-            drums_on = house or soft_kick or name == "verse3"
+            house = name in ("verse1", "verse2", "refrain1", "verse3", "refrain2", "climax")
+            full_hats = name in ("verse2", "refrain1", "refrain2", "climax")
+            soft_kick = name == "coda" or name == "intro"
+            drums_on = house or soft_kick
 
             # ---------- Melodie-Ebene je Abschnitt ----------
             if name == "intro":
-                self.play_phrases("keys", THEME_A, bar, root, "keys", 0.26, humanize=0.02, legato=1.1)
-                for b in (3, 7):  # Gitarren-Antwort am Phrasenende
-                    for k, semi in enumerate((7, 3, 0)):
-                        place(self.layers["guitar"], self.s(bar + b, 8 + 2 * k),
-                              ks_guitar(rng, root + semi, self.step_len(bar + b, 4), level=0.32, pan=0.3 - 0.3 * k))
+                self.play_phrases("guitar", THEME_A, bar, root, "guitar", 0.4, humanize=0.018, legato=1.1, octave=0)
+                self.answers(THEME_A, bar, root, chord_tones, level=0.12)
             elif name == "verse1":
-                self.play_phrases("lead", THEME_A, bar, root, "lead", 0.17, humanize=0.008)
-                self.answers(THEME_A, bar, root, chord_tones, level=0.11)
+                self.play_phrases("flute", THEME_A, bar, root, "flute", 0.24, humanize=0.01)
+                self.answers(THEME_A, bar, root, chord_tones, level=0.14)
             elif name == "verse2":
                 self.play_phrases("lead", THEME_A, bar, root, "lead", 0.2)
+                self.play_phrases("guitar", THEME_A, bar, root, "guitar", 0.22, octave=0, legato=0.8)
                 self.answers(THEME_A, bar, root, chord_tones, level=0.14)
             elif name in ("refrain1", "refrain2"):
-                self.play_phrases("lead", THEME_B, bar, root, "lead", 0.2, pan=0.1)
-                self.play_phrases("trance", THEME_B, bar, root, "hook", 0.11 if name == "refrain1" else 0.15)
+                self.play_phrases("lead", THEME_B, bar, root, "lead", 0.21, pan=0.1)
+                self.play_phrases("steel", THEME_B, bar, root, "steel", 0.16, octave=24, pan=-0.3, legato=0.7)
+                if name == "refrain2":
+                    self.play_phrases("flute", THEME_B, bar, root, "flute", 0.16, octave=12, pan=0.3)
             elif name == "verse3":
-                self.play_phrases("keys", THEME_A, bar, root, "keys", 0.25, legato=1.0)
-                for b in range(bars):  # Gitarre antwortet auf den Takt-Schluss
-                    if b % 2 == 1:
-                        tones = chord_tones(bar + b)
-                        for k in range(3):
-                            place(self.layers["guitar"], self.s(bar + b, 10 + 2 * k),
-                                  ks_guitar(rng, root + 12 + tones[(k + 1) % len(tones)], self.step_len(bar + b, 3),
-                                            level=0.3, pan=0.4 - 0.4 * k))
+                self.play_phrases("guitar", THEME_A, bar, root, "guitar", 0.42, legato=0.95, octave=0)
+                self.answers(THEME_A, bar, root, chord_tones, level=0.12)
             elif name == "bridge":
-                self.play_phrases("keys", FRAGMENT_A, bar, root, "keys", 0.24, humanize=0.015, legato=1.2)
+                self.play_phrases("guitar", FRAGMENT_A, bar, root, "guitar", 0.36, humanize=0.015, legato=1.2, octave=0)
             elif name == "climax":
                 self.play_phrases("trance", THEME_B, bar, root, "hook", 0.2)
                 self.play_phrases("lead", THEME_B, bar, root, "lead", 0.22, octave=24, pan=-0.1)
-                # zweite Hälfte: Thema erneut, Gegenstimme aus dem Hauptthema als Antwort (hoch, Pluck)
                 self.play_phrases("trance", THEME_B, bar + 8, root, "hook", 0.22)
                 self.play_phrases("lead", THEME_B, bar + 8, root, "lead", 0.24, octave=24, pan=-0.1)
-                self.play_phrases("pluck", THEME_A, bar + 8, root, "pluck", 0.16, octave=24, pan=0.5, legato=0.6)
+                self.play_phrases("steel", THEME_A, bar + 8, root, "steel", 0.2, octave=24, pan=0.5, legato=0.6)
             elif name == "coda":
-                self.play_phrases("keys", THEME_A, bar, root, "keys", 0.27, humanize=0.025, legato=1.25)
-                for b in (3, 7):
-                    for k, semi in enumerate((7, 3, 0)):
-                        place(self.layers["guitar"], self.s(bar + b, 8 + 2 * k),
-                              ks_guitar(rng, root + semi, self.step_len(bar + b, 4), level=0.3, pan=0.3 - 0.3 * k))
-                # Schluss: Grundton auf dem E-Piano, darunter der letzte Akkord
-                place(self.layers["keys"], self.s(bar + 8, 0), ep_keys(rng, root + 12, self.step_len(bar + 8, 16), level=0.3))
-                place(self.layers["keys"], self.s(bar + 9, 0), ep_keys(rng, root + 24, self.step_len(bar + 9, 16), level=0.2))
-                final = [root + s for s in CHORDS["Am9"]]
+                self.play_phrases("guitar", THEME_A, bar, root, "guitar", 0.4, humanize=0.025, legato=1.25, octave=0)
+                self.answers(THEME_A, bar, root, chord_tones, level=0.1)
+                place(self.layers["guitar"], self.s(bar + 8, 0), strum_chord(rng, [root + s_ for s_ in CHORDS["Am9"]], int(3.0 * SR), level=0.34, spread=0.05))
+                place(self.layers["steel"], self.s(bar + 9, 0), steel_drum(rng, root + 24, self.step_len(bar + 9, 16), level=0.2))
+                final = [root + s_ for s_ in CHORDS["Am9"]]
                 place(self.layers["pad"], self.s(bar + 8, 0), pad_chord(rng, final, int(6.0 * SR), cutoff=650.0,
                                                                         level=0.24, attack=1.5, release=4.0))
 
@@ -272,74 +327,69 @@ class Song:
                     place(self.layers["pad"], bar_s - int(0.12 * SR),
                           pad_chord(rng, voicing, int(bl * SR * 1.02), cutoff=cutoff, level=0.22))
 
-                # Gitarren-Picking in den Strophen
-                if name in ("verse1", "verse2"):
-                    pattern = [0, 2, 1, 3, 2, 1, 0, 2]
-                    for k, idx in enumerate(pattern):
-                        if name == "verse2" and k % 2 == 1:
-                            continue
-                        m = root + tones[idx % len(tones)] + (12 if idx == 3 else 0)
-                        place(self.layers["guitar"], st16(2 * k) + int(rng.normal(0, 0.004) * SR),
-                              ks_guitar(rng, m, self.step_len(cur, 3), level=0.22 if name == "verse1" else 0.16,
-                                        pan=-0.35 + 0.1 * k))
+                # Gitarren-Strums auf den Offbeats (2+ und 4), in Strophe 3 als Rasgueado-Figur
+                if name in ("verse1", "verse2", "refrain1", "refrain2", "verse3"):
+                    voicing_g = [root + s_ for s_ in tones[:4]]
+                    hits = [(6, True), (12, False)] if name != "verse3" else [(6, True), (7, False), (12, True), (14, False)]
+                    for st, down in hits:
+                        place(self.layers["guitar"], st16(st) + int(rng.normal(0, 0.004) * SR),
+                              strum_chord(rng, voicing_g, self.step_len(cur, 3), level=0.2 if name != "verse3" else 0.24,
+                                          spread=0.012, pan=-0.25, down=down))
 
-                # E-Piano-Comping in Strophe 2 und Refrains (leise, auf 1 und 2+)
-                if name in ("verse2", "refrain1", "refrain2"):
-                    for k in (0, 6):
-                        if rng.random() < 0.8:
-                            for j, s_ in enumerate(tones[:3]):
-                                place(self.layers["keys"], st16(k) + j * int(0.012 * SR),
-                                      ep_keys(rng, root + 12 + s_, self.step_len(cur, 5), level=0.09, pan=rng.uniform(-0.3, 0.3)))
-
-                # Bass
-                if name in ("verse1", "verse3", "bridge") or (name == "coda" and b < 6):
-                    if name == "bridge" and b >= 4:
+                # Bass: E-Bass in Intro/Zwischenteil/Coda, rollender Synth-Bass in den House-Teilen
+                if name in ("intro", "bridge") or name == "coda":
+                    if name == "intro" and b < 4:
+                        pass
+                    elif name == "bridge" and b >= 4:
                         pass  # Stille vor dem Höhepunkt
+                    elif name == "coda" and b >= 6:
+                        pass
                     else:
-                        place(self.layers["bass"], bar_s, synth_bass(rng, float(midi_to_hz(bass_root)), int(bl * 0.9 * SR),
-                                                                     level=0.62, cutoff=380.0))
-                        if name == "verse3":
-                            place(self.layers["bass"], st16(10), synth_bass(rng, float(midi_to_hz(bass_root)), self.step_len(cur, 3),
-                                                                            level=0.5, cutoff=450.0))
+                        for st in (0, 8):
+                            place(self.layers["bass"], st16(st), pluck_bass(rng, bass_root, self.step_len(cur, 7), level=0.75))
+                        if name == "intro":
+                            place(self.layers["bass"], st16(14), pluck_bass(rng, bass_root + 12, self.step_len(cur, 2), level=0.5))
                 elif house:
-                    steps = [0, 2, 4, 6, 8, 10, 12, 14] if name == "climax" or name == "refrain2" else [0, 3, 6, 8, 11, 14]
+                    steps = [0, 2, 4, 6, 8, 10, 12, 14] if name in ("climax", "refrain2", "refrain1") else [0, 3, 6, 8, 11, 14]
                     for i, st in enumerate(steps):
                         nxt = steps[i + 1] if i + 1 < len(steps) else 16
                         m = bass_root + (12 if st in (6, 14) and rng.random() < 0.5 else 0)
+                        cut = {"verse1": 520.0, "verse2": 600.0, "refrain1": 700.0, "verse3": 650.0, "refrain2": 760.0, "climax": 900.0}[name]
                         place(self.layers["bass"], st16(st),
                               synth_bass(rng, float(midi_to_hz(m)), int(self.step_len(cur, nxt - st) * 0.65),
-                                         level=0.78 if st in (0, 8) else 0.66, cutoff=600.0 + (300.0 if name == "climax" else 0.0)))
+                                         level=0.82 if st in (0, 8) else 0.7, cutoff=cut))
 
                 # Drums
-                if drums_on and not (name == "coda" and b >= 4):
+                if drums_on and not (name == "coda" and b >= 4) and not (name == "intro" and b < 4):
                     if soft_kick:
                         for st in (0, 8):
-                            place(self.layers["drums"], st16(st), kick_s * 0.55)
+                            place(self.layers["drums"], st16(st), kick_s * 0.6)
                             self.kick_times.append(st16(st))
                     else:
-                        gain = {"verse2": 0.75, "verse3": 0.7, "refrain1": 0.9, "refrain2": 0.95, "climax": 1.0}[name]
+                        gain = {"verse1": 0.8, "verse2": 0.9, "refrain1": 0.95, "verse3": 0.85, "refrain2": 1.0, "climax": 1.0}[name]
                         for st in (0, 4, 8, 12):
                             if last_bar and st == 12 and name in ("refrain1", "verse3"):
                                 continue  # Fill: letztes Viertel ohne Kick
                             place(self.layers["drums"], st16(st), kick_s * gain)
                             self.kick_times.append(st16(st))
-                    if name in ("verse2", "verse3"):
+                    if name in ("verse1", "verse3"):
                         for st in (2, 6, 10, 14):
-                            place(self.layers["drums"], st16(st), ohat * 0.6)
-                        if name == "verse2":
-                            place(self.layers["drums"], st16(12), clap_s * 0.7)
+                            place(self.layers["drums"], st16(st), ohat * 0.7)
+                        place(self.layers["drums"], st16(12), clap_s * 0.75)
+                        if name == "verse3":
+                            place(self.layers["drums"], st16(4), clap_s * 0.6)
                     if full_hats:
                         for st in range(16):
                             h = ohat if st in (2, 6, 10, 14) else hat_c
                             vel = (1.0 if st % 2 == 0 else 0.55) * rng.uniform(0.85, 1.0)
                             place(self.layers["drums"], st16(st) + int(rng.normal(0, 0.0015) * SR), h * vel)
                         for st in (4, 12):
-                            place(self.layers["drums"], st16(st), clap_s * 0.9)
-                            place(self.layers["drums"], st16(st), snare_s * 0.8)
+                            place(self.layers["drums"], st16(st), clap_s * 0.95)
+                            place(self.layers["drums"], st16(st), snare_s * 0.85)
                     if name == "climax":
                         for st in range(0, 16, 2):
                             place(self.layers["drums"], st16(st), ride_s * (1.0 if st % 4 == 0 else 0.7))
-                    if last_bar and name in ("verse2", "refrain1", "verse3", "refrain2"):
+                    if last_bar and name in ("verse1", "verse2", "refrain1", "verse3", "refrain2"):
                         for k, st in enumerate((12, 13, 14, 15)):
                             place(self.layers["drums"], st16(st), snare_s * (0.3 + 0.2 * k))
                     if name == "climax" and b in (7, 15):
@@ -352,6 +402,12 @@ class Song:
                         if st % 2 == 0 or rng.random() < dens:
                             place(self.layers["perc"], st16(st) + int(rng.normal(0, 0.002) * SR),
                                   shaker_s * (1.0 if st % 4 == 0 else 0.5) * (0.6 if name in ("intro", "bridge", "coda") else 1.0))
+
+                # Congas in Strophen und Refrains
+                if name in ("verse1", "verse2", "verse3", "refrain1", "refrain2"):
+                    for st, cg in ((3, congas[0]), (7, congas[1]), (11, congas[0]), (13, congas[2])):
+                        if rng.random() < 0.8:
+                            place(self.layers["perc"], st16(st) + int(rng.normal(0, 0.003) * SR), cg * 0.8)
 
                 # Zwischenteil: Riser über die letzten 4 Takte, Snare-Roll im letzten Takt
                 if name == "bridge":
@@ -372,20 +428,25 @@ class Song:
                               house_stab(rng, [root + 12 + s for s in tones[:4]], self.step_len(cur, 1.2),
                                          level=0.2 if name != "climax" else 0.26, cutoff=2200.0, pan=rng.uniform(-0.3, 0.3)))
 
-                # Acid: leise ab Strophe 3, im Höhepunkt präsenter
-                if name in ("verse3", "refrain2", "climax"):
+                # Acid: ab Strophe 2, wächst bis zum Höhepunkt
+                if name in ("verse2", "refrain1", "verse3", "refrain2", "climax"):
+                    lvl = {"verse2": 0.24, "refrain1": 0.3, "verse3": 0.34, "refrain2": 0.36, "climax": 0.4}[name]
+                    cut = {"verse2": 280.0, "refrain1": 340.0, "verse3": 400.0, "refrain2": 460.0, "climax": 560.0}[name]
+                    seq = ((0, 0, True, False), (3, 0, False, False), (6, 12, False, True), (8, 0, True, False),
+                           (10, 7, False, False), (11, 10, False, True), (14, 0, False, False), (15, 12, False, False))
                     prev = None
-                    for st, iv, acc in ((0, 0, True), (3, 0, False), (6, 12, False), (8, 0, True), (11, 7, False), (14, 0, False)):
-                        if name == "verse3" and st in (3, 11):
+                    for st, iv, acc, slide in seq:
+                        if name == "verse2" and st in (10, 15):
+                            prev = None
                             continue
                         m = bass_root + 12 + iv
                         place(self.layers["acid"], st16(st),
-                              acid_note(rng, m, self.step_len(cur, 0.6), prev_midi=None, accent=acc,
-                                        level=0.2 if name == "verse3" else 0.28, base_cut=300.0 if name != "climax" else 520.0,
-                                        env_amount=2200.0, q=6.5))
+                              acid_note(rng, m, self.step_len(cur, 1.3 if slide else 0.6), prev_midi=prev if slide else None,
+                                        accent=acc, level=lvl, base_cut=cut, env_amount=2400.0, q=7.0))
+                        prev = m
 
                 # Trance-Arpeggio in Refrain 2 und Höhepunkt
-                if name in ("refrain2", "climax"):
+                if name == "climax":
                     arp = sorted({root + 12 + s for s in tones[:4]} | {root + 24 + s for s in tones[:2]})
                     order = arp + arp[-2:0:-1]
                     for st in range(16):
@@ -428,10 +489,12 @@ class Song:
         trance = reverb(delay(L["trance"], self.beat * 0.75, 0.4, 5, 3200.0, True, 0.3), ir_long, 0.5) * d
         stab = reverb(delay(L["stab"], self.beat * 1.5, 0.35, 4, 3000.0, True, 0.25), ir_long, 0.3) * d
         atmos = L["atmos"]
+        flute_l = reverb(delay(L["flute"], self.beat * 1.5, 0.35, 4, 3000.0, True, 0.22), ir_long, 0.42)
+        steel = reverb(delay(L["steel"], self.beat * 0.75, 0.3, 3, 3500.0, True, 0.2), ir_long, 0.35) * (0.6 + 0.4 * d)
 
-        parts = dict(drums=drums * 0.95, perc=perc * 1.1, bass=bass * 0.85, pad=pad * 2.4, keys=keys * 1.3,
-                     pluck=pluck_l * 1.9, lead=lead_l * 1.6, guitar=guitar * 1.5, atmos=atmos * 1.8,
-                     acid=acid * 1.3, stab=stab * 2.4, trance=trance * 1.7)
+        parts = dict(drums=drums * 1.15, perc=perc * 1.1, bass=bass * 1.05, pad=pad * 2.0, keys=keys * 1.0,
+                     pluck=pluck_l * 1.6, lead=lead_l * 1.5, guitar=guitar * 1.8, atmos=atmos * 1.8,
+                     acid=acid * 1.7, stab=stab * 2.4, trance=trance * 1.7, flute=flute_l * 1.6, steel=steel * 1.4)
         if os.environ.get("ALBUM_DEBUG"):
             for k, v in parts.items():
                 r = np.sqrt(np.mean(v ** 2)) + 1e-9
@@ -454,11 +517,11 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     song = Song()
-    print(f"Songform: {song.total_bars} Takte, ca. {song.bar_start[-1]/60:.0f}:{song.bar_start[-1]%60:02.0f} min", flush=True)
+    print(f"Songform: {song.total_bars} Takte, ca. {int(song.bar_start[-1] // 60)}:{int(song.bar_start[-1] % 60):02d} min", flush=True)
     mixv = song.render()
     ga.write_outputs(mixv, os.path.join(args.out, args.name), args.wav, True)
     dur = len(mixv) / SR
-    print(f"fertig: {args.name}  {int(dur//60)}:{dur%60:02.0f} min, RMS {20*np.log10(np.sqrt(np.mean(mixv**2))):.1f} dBFS")
+    print(f"fertig: {args.name}  {int(dur // 60)}:{int(dur % 60):02d} min, RMS {20*np.log10(np.sqrt(np.mean(mixv**2))):.1f} dBFS")
 
 
 if __name__ == "__main__":

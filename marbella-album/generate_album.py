@@ -172,15 +172,18 @@ def chorus_widen(x, rng, depth_ms=4.0, rate=0.25):
 # Instrumente (alle synthetisch)
 # --------------------------------------------------------------------------- #
 def kick(rng, punch=1.0):
-    n = int(0.42 * SR)
+    n = int(0.6 * SR)
     t = np.arange(n) / SR
-    f = 42.0 + 110.0 * np.exp(-t * 32.0)
+    f = 40.0 + 130.0 * np.exp(-t * 30.0)
     phase = np.cumsum(f) / SR
-    body = np.sin(2 * np.pi * phase) * np.exp(-t * 9.0)
-    click = rng.standard_normal(n) * np.exp(-t * 350.0) * 0.25 * punch
-    click = highpass(click, 1500.0)
-    x = soft_clip(body * 1.2 + click, 1.4) * 0.9
-    return to_stereo(x, 0.0)
+    body = np.sin(2 * np.pi * phase) * np.exp(-t * 6.0)
+    sub = np.sin(2 * np.pi * 46.0 * t + 0.3) * np.exp(-t * 7.5) * 0.4
+    click = rng.standard_normal(n) * np.exp(-t * 420.0) * 0.5 * punch
+    click = highpass(click, 1800.0)
+    x = soft_clip(body * 1.9 + sub + click, 2.0)
+    x = lowpass(x, 9000.0)
+    x *= np.minimum(1.0, t / 0.0008)
+    return to_stereo(x * 1.0, 0.0)
 
 
 def hat(rng, length=0.06, tone=8000.0, level=0.35):
@@ -213,6 +216,26 @@ def clap(rng, level=0.35):
     return to_stereo(x * level, 0.1)
 
 
+def snare_layer(rng, level=0.3):
+    n = int(0.25 * SR)
+    t = np.arange(n) / SR
+    tone = np.sin(2 * np.pi * (185.0 + 60.0 * np.exp(-t * 80)) * t) * np.exp(-t * 28.0)
+    noise = bandpass(rng.standard_normal(n), 1200.0, 8000.0) * np.exp(-t * 18.0)
+    x = soft_clip(tone * 0.9 + noise * 0.9, 1.5)
+    return to_stereo(x * level, -0.05)
+
+
+def ride(rng, level=0.14):
+    n = int(0.5 * SR)
+    t = np.arange(n) / SR
+    x = np.zeros(n)
+    for ratio in (1.0, 1.47, 2.09, 2.56, 3.01):
+        x += square(410.0 * ratio, n, rng.random())
+    x = highpass(x, 4000.0) + 0.5 * highpass(rng.standard_normal(n), 6000.0)
+    x *= np.exp(-t * 6.0)
+    return to_stereo(x * level / 3.0, 0.35)
+
+
 def conga(rng, freq=190.0, level=0.5, pan=0.0):
     n = int(0.3 * SR)
     t = np.arange(n) / SR
@@ -232,12 +255,18 @@ def rim(rng, level=0.25, pan=0.3):
     return to_stereo(x * level, pan)
 
 
-def sub_bass(freq, n_hold, level=0.8, grit=0.15):
-    n = n_hold + int(0.12 * SR)
-    x = sine(freq, n) + grit * lowpass(saw(freq, n), freq * 3.0)
-    x += 0.35 * sine(freq * 2.0, n) * np.exp(-np.arange(n) / SR * 5.0)
-    env = envelope(n_hold, 0.008, 0.25, 0.7, 0.12)
-    x = lowpass(x * env[:n], 260.0)
+def synth_bass(rng, freq, n_hold, level=0.8, cutoff=700.0, drive=1.8, q=2.2):
+    """Druckvoller Synth-Bass: Sägezahn + Rechteck durch Resonanzfilter, Sub-Sinus, Sättigung."""
+    n = n_hold + int(0.15 * SR)
+    t = np.arange(n) / SR
+    osc = saw(freq, n, rng.random()) + 0.6 * square(freq, n, rng.random(), 0.48)
+    cut = cutoff * (freq / 55.0) ** 0.5 * (0.35 + np.exp(-t * 9.0)) + 90.0
+    y = reso_lowpass_sweep(osc, cut, q, block=128)
+    y = soft_clip(y * drive, 1.6)
+    sub = np.sin(2 * np.pi * freq * t) * 0.5
+    env = fit(envelope(n_hold, 0.004, 0.2, 0.75, 0.10), n)
+    x = (y * 0.7 + sub) * env
+    x = highpass(x, 28.0)
     return to_stereo(x * level, 0.0)
 
 
@@ -314,9 +343,12 @@ def ep_keys(rng, midi, n_hold, level=0.35, pan=0.0):
     n = n_hold + int(1.0 * SR)
     t = np.arange(n) / SR
     x = np.zeros(n)
-    for k, amp, dec in ((1, 1.0, 1.6), (2, 0.45, 3.0), (3, 0.18, 5.0), (4, 0.10, 7.0), (6, 0.04, 9.0)):
-        x += amp * np.sin(2 * np.pi * f * k * t + rng.random() * 6.28) * np.exp(-t * dec)
-    x += 0.15 * np.sin(2 * np.pi * f * 7.02 * t) * np.exp(-t * 25.0)  # "Bell"-Anschlag
+    for k, amp, dec in ((1, 1.0, 2.2), (2, 0.5, 5.0), (3, 0.22, 9.0), (4, 0.12, 14.0), (5, 0.05, 18.0)):
+        det = 1.0 + 0.0012 * (k - 1)
+        x += amp * np.sin(2 * np.pi * f * k * det * t + rng.random() * 6.28) * np.exp(-t * dec)
+    x += 0.25 * np.sin(2 * np.pi * f * 7.02 * t) * np.exp(-t * 40.0)  # "Bell"-Anschlag
+    x += 0.08 * highpass(rng.standard_normal(n), 2500.0) * np.exp(-t * 120.0)  # Hammer
+    x = soft_clip(x * 1.3, 1.5)
     env = fit(envelope(n_hold, 0.003, 0.5, 0.6, 0.7), n)
     x *= env
     x = lowpass(x, 5000.0)
@@ -325,13 +357,18 @@ def ep_keys(rng, midi, n_hold, level=0.35, pan=0.0):
 
 def lead(rng, midi, n_hold, level=0.3, pan=0.0, vibrato=5.2):
     f = float(midi_to_hz(midi))
-    n = n_hold + int(0.6 * SR)
+    n = n_hold + int(0.7 * SR)
     t = np.arange(n) / SR
-    vib = 1.0 + 0.006 * np.sin(2 * np.pi * vibrato * t) * np.minimum(1.0, t / 0.35)
-    phase = np.cumsum(f * vib) / SR
-    x = 0.7 * np.sin(2 * np.pi * phase) + 0.3 * (2.0 * np.abs(2.0 * (phase % 1.0) - 1.0) - 1.0)
-    x = lowpass(x, 3000.0)
-    env = fit(envelope(n_hold, 0.06, 0.3, 0.8, 0.5), n)
+    vib = 1.0 + 0.005 * np.sin(2 * np.pi * vibrato * t) * np.minimum(1.0, t / 0.4)
+    x = np.zeros(n)
+    for cents in (-9.0, 0.0, 9.0):
+        phase = np.cumsum(f * vib * 2.0 ** (cents / 1200.0)) / SR + rng.random()
+        x += 2.0 * (phase % 1.0) - 1.0
+    x /= 3.0
+    x += 0.4 * np.sin(2 * np.pi * np.cumsum(f * vib) / SR)
+    cut = 900.0 + 2600.0 * np.exp(-t * 3.0) + 600.0 * np.minimum(1.0, t / 0.4)
+    x = reso_lowpass_sweep(x, cut, 1.6, block=256)
+    env = fit(envelope(n_hold, 0.05, 0.3, 0.8, 0.55), n)
     return to_stereo(x * env * level, pan)
 
 
@@ -460,6 +497,59 @@ def open_hat_909(rng, level=0.22):
     x *= np.exp(-t * 11.0)
     return to_stereo(x * level / 3.0, 0.2)
 
+
+# --------------------------------------------------------------------------- #
+# Trance (chillig dosiert)
+# --------------------------------------------------------------------------- #
+def supersaw_lead(rng, midi, n_hold, level=0.28, cutoff=3400.0, pan=0.0):
+    """Breiter Supersaw-Hook mit langer Release, weich gefiltert."""
+    f = float(midi_to_hz(midi))
+    n = n_hold + int(1.1 * SR)
+    out = np.zeros((n, 2))
+    for ch in range(2):
+        v = np.zeros(n)
+        for cents in (-19.0, -12.0, -5.0, 0.0, 5.0, 12.0, 19.0):
+            v += saw(f * 2.0 ** ((cents + rng.uniform(-1.0, 1.0)) / 1200.0), n, rng.random())
+        v /= 7.0
+        v += 0.35 * saw(f * 0.5, n, rng.random())
+        out[:, ch] = v
+    out = lowpass(out, cutoff)
+    out = highpass(out, 140.0)
+    env = fit(envelope(n_hold, 0.03, 0.5, 0.8, 1.0), n)
+    out *= env[:, None] * level
+    ang = (pan + 1.0) * np.pi / 4.0
+    out[:, 0] *= np.cos(ang) * 1.4
+    out[:, 1] *= np.sin(ang) * 1.4
+    return out
+
+
+def trance_pluck(rng, midi, n_hold, level=0.25, pan=0.0):
+    """Kurzer, heller Pluck für rollende 16tel-Arpeggios."""
+    f = float(midi_to_hz(midi))
+    n = n_hold + int(0.4 * SR)
+    x = np.zeros(n)
+    for cents in (-8.0, 0.0, 8.0):
+        x += saw(f * 2.0 ** (cents / 1200.0), n, rng.random())
+    x /= 3.0
+    t = np.arange(n) / SR
+    cut = 4500.0 * np.exp(-t * 14.0) + 600.0
+    y = reso_lowpass_sweep(x, cut, 1.8, block=256)
+    env = fit(envelope(n_hold, 0.002, 0.2, 0.25, 0.3), n)
+    return to_stereo(y * env * level, pan)
+
+
+def riser(rng, n, level=0.2):
+    """Weißes Rauschen mit aufsteigendem Filter und ansteigender Lautstärke."""
+    t = np.linspace(0.0, 1.0, n)
+    noise = rng.standard_normal(n)
+    cut = 250.0 * (32.0 ** t)
+    y = reso_lowpass_sweep(noise, cut, 2.2, block=512)
+    y = highpass(y, 200.0)
+    y *= (t ** 2.2) * level
+    y[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR))
+    return to_stereo(y, 0.0)
+
+
 # --------------------------------------------------------------------------- #
 # Musiktheorie
 # --------------------------------------------------------------------------- #
@@ -508,7 +598,7 @@ class Track:
         self.total_bars = sum(b for _, b in sections)
         self.n = int((self.total_bars * self.bar + 6.0) * SR)
         self.layers = {k: np.zeros((self.n, 2)) for k in
-                       ("drums", "perc", "bass", "pad", "keys", "pluck", "lead", "guitar", "atmos", "acid", "stab")}
+                       ("drums", "perc", "bass", "pad", "keys", "pluck", "lead", "guitar", "atmos", "acid", "stab", "trance")}
         self.kick_times = []
 
     # ---- Hilfen ------------------------------------------------------------
@@ -519,6 +609,14 @@ class Track:
     def chord_for_bar(self, bar):
         deg, kind = self.prog[bar % len(self.prog)]
         return deg, kind
+
+    def sections_bars_at(self, bar):
+        acc = 0
+        for name, bars in self.sections:
+            if bar < acc + bars:
+                return bars
+            acc += bars
+        return 1
 
     def section_at(self, bar):
         acc = 0
@@ -590,7 +688,7 @@ class Track:
 
         kick_steps_house = [0, 4, 8, 12]
         kick_steps_down = [0, 7, 8, 11] if rng.random() < 0.5 else [0, 6, 10]
-        bass_steps_house = [0, 3, 6, 8, 11, 14]
+        bass_steps_house = [0, 2, 4, 6, 8, 10, 12, 14] if rng.random() < 0.6 else [0, 3, 6, 8, 11, 14]
         bass_steps_down = [0, 7, 10]
 
         # Drum-/Perc-Sounds einmal erzeugen (Variation über Lautstärke/Filter)
@@ -600,6 +698,8 @@ class Track:
         clap_s = clap(rng, 0.28)
         shaker_s = shaker(rng, 0.14)
         rim_s = rim(rng, 0.2)
+        snare_s = snare_layer(rng, 0.3)
+        ride_s = ride(rng, 0.13)
         congas = [conga(rng, p, 0.45, rng.uniform(-0.5, 0.5)) for p in conga_pitches]
 
         for bar in range(self.total_bars):
@@ -639,9 +739,17 @@ class Track:
                         place(self.layers["drums"], bar_s + st * beat16 + int(rng.normal(0, 0.0015) * SR), h * vel)
                     for st in (4, 12):
                         place(self.layers["drums"], bar_s + st * beat16, clap_s * (0.8 + 0.2 * rng.random()))
+                        place(self.layers["drums"], bar_s + st * beat16, snare_s * (0.9 if style == "house" else 0.6))
+                    if style == "house" and sec == "main":
+                        for st in range(0, 16, 2):
+                            place(self.layers["drums"], bar_s + st * beat16 + int(rng.normal(0, 0.001) * SR),
+                                  ride_s * (1.0 if st % 4 == 0 else 0.7))
                 else:
                     for st in (2, 6, 10, 14):
                         place(self.layers["drums"], bar_s + st * beat16, hat_o * 0.7)
+                    if sec == "groove":
+                        for st in range(0, 16, 2):
+                            place(self.layers["drums"], bar_s + st * beat16, hat_c * 0.5)
                 if sec == "build" and frac > 0.5:
                     for st in range(0, 16, 2 if frac < 0.85 else 1):
                         place(self.layers["drums"], bar_s + st * beat16, rim_s * (0.4 + 0.6 * frac))
@@ -666,14 +774,16 @@ class Track:
                     bs = [0]
                 for i, st in enumerate(bs):
                     nxt = bs[i + 1] if i + 1 < len(bs) else 16
-                    hold = int((nxt - st) * beat16 * 0.9)
+                    hold = int((nxt - st) * beat16 * (0.6 if style == "house" else 0.9))
                     m = bass_midi
                     if style == "house" and st in (6, 14):
                         m = bass_midi + (12 if rng.random() < 0.5 else 7)
                     if st == 11 and rng.random() < 0.5:
                         m = bass_midi + 12
+                    vel = 1.0 if st in (0, 8) else 0.85
                     place(self.layers["bass"], bar_s + st * beat16,
-                          sub_bass(float(midi_to_hz(m)), hold, level=0.75 * (0.8 + 0.2 * intensity)))
+                          synth_bass(rng, float(midi_to_hz(m)), hold, level=0.8 * vel * (0.8 + 0.2 * intensity),
+                                     cutoff=spec.get("bass_cutoff", 700.0) * (0.7 + 0.5 * intensity)))
 
             # --- Pad ---------------------------------------------------------
             if pad_on:
@@ -759,6 +869,35 @@ class Track:
                           house_stab(rng, voicing, int(beat16 * 1.2), level=0.26 * intensity,
                                      cutoff=spec.get("stab_cutoff", 2200.0), pan=rng.uniform(-0.3, 0.3)))
 
+            # --- Trance: Arpeggio, Supersaw-Hook, Riser ---------------------------
+            if spec.get("trance", False):
+                arp_tones = sorted({m + 12 for m in chord_midis[:4]} | {m + 24 for m in chord_midis[:2]})
+                order = arp_tones + arp_tones[-2:0:-1]  # auf und ab
+                if sec in ("main", "build") and (full_kit or sec == "build"):
+                    for st in range(16):
+                        if st % 4 == 3 and rng.random() < 0.35:
+                            continue
+                        m = order[(st + bar * 2) % len(order)]
+                        place(self.layers["trance"], bar_s + st * beat16,
+                              trance_pluck(rng, m, int(beat16 * 0.6),
+                                           level=0.16 * intensity * spec.get("trance_level", 1.0),
+                                           pan=0.55 if st % 2 else -0.55))
+                if sec == "main" and frac >= 0.5 or (sec == "break" and frac > 0.4):
+                    motif = motif_a
+                    half = (bar % 2) * 16
+                    for st, dgr, dur in motif:
+                        if not (half <= st < half + 16) or dur < 2:
+                            continue
+                        d = self.snap_to_chord(dgr, bar) if st % 4 == 0 else dgr
+                        m = scale_degree_midi(self.root, self.scale, d, 1)
+                        hold = int(dur * beat16 * 1.1)
+                        place(self.layers["trance"], bar_s + (st - half) * beat16,
+                              supersaw_lead(rng, m, hold, level=0.2 * spec.get("trance_level", 1.0),
+                                            cutoff=spec.get("trance_cutoff", 3200.0), pan=0.0))
+                if sec == "build" and frac == 0.0:
+                    n_build = int(self.sections_bars_at(bar) * self.bar * SR)
+                    place(self.layers["trance"], bar_s, riser(rng, n_build, level=0.16))
+
             # --- Lead-Melodie -----------------------------------------------
             if lead_on:
                 motif = motif_a if (bar // 2) % 4 in (0, 1, 3) else motif_b
@@ -812,13 +951,13 @@ class Track:
         duck = np.ones(self.n)
         if self.kick_times and spec.get("sidechain", True):
             curve_n = int(0.32 * SR)
-            curve = 1.0 - 0.55 * np.exp(-np.linspace(0, 5, curve_n))
+            curve = 1.0 - 0.7 * np.exp(-np.linspace(0, 5, curve_n))
             for kt in self.kick_times:
                 end = min(self.n, kt + curve_n)
                 if kt < self.n:
                     duck[kt:end] = np.minimum(duck[kt:end], curve[: end - kt])
             duck = lowpass(duck, 60.0)
-            duck = np.clip(duck, 0.3, 1.0)
+            duck = np.clip(duck, 0.25, 1.0)
 
         pad = chorus_widen(L["pad"], rng)
         pad = reverb(pad, ir_long, 0.55) * duck[:, None]
@@ -828,14 +967,15 @@ class Track:
         guitar = reverb(delay(L["guitar"], self.beat * 0.75, 0.3, 3, 3000.0, False, 0.2), ir_room, 0.35)
         perc = reverb(L["perc"], ir_room, 0.18)
         drums = reverb(L["drums"], ir_room, 0.06)
-        bass = L["bass"] * (0.6 + 0.4 * duck[:, None])
+        bass = L["bass"] * (0.55 + 0.45 * duck[:, None])
         acid = reverb(delay(L["acid"], self.beat * 0.75, 0.3, 3, 2400.0, True, 0.18), ir_room, 0.16) * (0.7 + 0.3 * duck[:, None])
+        trance = reverb(delay(L["trance"], self.beat * 0.75, 0.4, 5, 3200.0, True, 0.3), ir_long, 0.55) * duck[:, None]
         stab = reverb(delay(L["stab"], self.beat * 1.5, 0.35, 4, 3000.0, True, 0.25), ir_long, 0.3) * duck[:, None]
         atmos = L["atmos"]
 
-        parts = dict(drums=drums * 0.72, perc=perc * 0.9, bass=bass * 0.55, pad=pad * 2.4, keys=keys * 1.7,
-                     pluck=pluck * 1.9, lead=lead_l * 1.5, guitar=guitar * 1.5, atmos=atmos * 2.0,
-                     acid=acid * 1.0, stab=stab * 1.6)
+        parts = dict(drums=drums * 0.95, perc=perc * 1.1, bass=bass * 0.85, pad=pad * 2.4, keys=keys * 1.2,
+                     pluck=pluck * 1.9, lead=lead_l * 1.6, guitar=guitar * 1.5, atmos=atmos * 1.8,
+                     acid=acid * 1.3, stab=stab * 2.4, trance=trance * 1.7)
         if os.environ.get("ALBUM_DEBUG"):
             for k, v in parts.items():
                 r = np.sqrt(np.mean(v ** 2)) + 1e-9
@@ -848,63 +988,97 @@ class Track:
         mixv[:fade_in] *= np.linspace(0, 1, fade_in)[:, None]
         tail = int(4.0 * SR)
         mixv[-tail:] *= np.linspace(1, 0, tail)[:, None] ** 1.5
-        rms = np.sqrt(np.mean(mixv ** 2)) + 1e-9
-        mixv *= 0.13 / rms
-        mixv = soft_clip(mixv, 1.6)
-        mixv *= 0.95 / (np.abs(mixv).max() + 1e-9)
+        mixv = master_chain(mixv)
         return mixv
+
+
+def bus_compressor(x, threshold=0.22, ratio=3.5, attack=0.004, release=0.18):
+    """Einfacher Feed-Forward-Kompressor auf dem Summensignal (Stereo-Link)."""
+    level = np.max(np.abs(x), axis=1)
+    a_att = np.exp(-1.0 / (attack * SR))
+    a_rel = np.exp(-1.0 / (release * SR))
+    # Hüllkurvenfolger (Peak) via lfilter in zwei Stufen: schneller Anstieg, langsamer Abfall
+    env = signal.lfilter([1 - a_rel], [1, -a_rel], level)
+    env = np.maximum(env, signal.lfilter([1 - a_att], [1, -a_att], level))
+    gain = np.ones_like(env)
+    over = env > threshold
+    gain[over] = (threshold / env[over]) ** (1.0 - 1.0 / ratio)
+    gain = lowpass(gain, 400.0)
+    return x * gain[:, None]
+
+
+def master_chain(x):
+    # Tilt-EQ: etwas mehr Gewicht unten, Luft oben
+    low = lowpass(x, 110.0, 2)
+    high = highpass(x, 6500.0, 2)
+    x = highpass(x, 32.0)
+    x = x + 0.12 * low + 0.3 * high
+    # Kompression, Sättigung, Loudness
+    rms = np.sqrt(np.mean(x ** 2)) + 1e-9
+    x *= 0.16 / rms
+    x = bus_compressor(x)
+    x = soft_clip(x * 1.1, 1.6)
+    rms = np.sqrt(np.mean(x ** 2)) + 1e-9
+    x *= 0.17 / rms
+    x = soft_clip(x, 1.8)
+    x *= 0.98 / (np.abs(x).max() + 1e-9)
+    return x
 
 
 # --------------------------------------------------------------------------- #
 # Album
 # --------------------------------------------------------------------------- #
-ALBUM_TITLE = "Isla Blanca – Balearic Chill Sessions"
+ALBUM_TITLE = "Sounds of Marbella 2026"
+ALBUM_ARTIST = "DJ Jensi"
 
 TRACKS = [
-    dict(nr=1, title="Cala Salada Sunrise", seed=1101, bpm=98, root=57, scale="minor", style="downtempo",
+    dict(nr=1, title="La Fontanilla Sunrise", seed=1101, bpm=98, root=57, scale="minor", style="downtempo",
          progression=[(0, "9"), (5, "7"), (2, "7"), (6, "7")],
          sections=[("intro", 8), ("groove", 12), ("main", 16), ("break", 8), ("main", 12), ("outro", 10)],
          ocean=True, seagulls=True, keys=True, pluck=False, lead=True, guitar=False, congas=True,
          pad_cutoff=1100.0, lead_level=0.9),
-    dict(nr=2, title="Es Vedrà Horizon", seed=2202, bpm=106, root=62, scale="dorian", style="house",
+    dict(nr=2, title="La Concha Horizon", seed=2202, bpm=106, root=62, scale="dorian", style="house",
          progression=[(0, "7"), (3, "7"), (0, "7"), (6, "7")],
          sections=[("intro", 6), ("groove", 12), ("build", 6), ("main", 16), ("break", 8), ("main", 12), ("outro", 8)],
          ocean=False, keys=False, pluck=True, lead=True, guitar=True, congas=True,
          pad_cutoff=1500.0, guitar_pattern=[0, 3, 6, 8, 11, 14],
-         acid=True, acid_level=0.75, acid_density=0.55, acid_cutoff=320.0, acid_q=5.5, house_kit=True),
-    dict(nr=3, title="Salinas Breeze", seed=3303, bpm=112, root=59, scale="minor", style="house",
+         acid=True, acid_level=0.75, acid_density=0.55, acid_cutoff=320.0, acid_q=5.5, house_kit=True,
+         trance=True, trance_level=0.8, trance_cutoff=2800.0),
+    dict(nr=3, title="Golden Mile Breeze", seed=3303, bpm=112, root=59, scale="minor", style="house",
          progression=[(0, "9"), (5, "9"), (3, "7"), (4, "7")],
          sections=[("intro", 6), ("groove", 12), ("build", 6), ("main", 16), ("break", 8), ("build", 4), ("main", 12), ("outro", 8)],
          ocean=False, keys=True, pluck=True, lead=False, guitar=False, congas=False,
          pad_cutoff=1700.0, pluck_brightness=3200.0, keys_pattern=[0, 4, 8, 12],
          acid=True, acid_level=0.9, acid_density=0.7, acid_cutoff=420.0, acid_q=7.5, acid_wave="square",
-         stabs=True, stab_pattern=[2, 7, 10, 15], stab_cutoff=2600.0, house_kit=True),
-    dict(nr=4, title="Benirràs Drum Circle", seed=4404, bpm=102, root=55, scale="dorian", style="downtempo",
+         stabs=True, stab_pattern=[2, 7, 10, 15], stab_cutoff=2600.0, house_kit=True,
+         trance=True, trance_level=1.0, trance_cutoff=3400.0),
+    dict(nr=4, title="Cabopino Drum Circle", seed=4404, bpm=102, root=55, scale="dorian", style="downtempo",
          progression=[(0, "7"), (0, "7"), (3, "7"), (6, "7")],
          sections=[("intro", 6), ("groove", 12), ("main", 16), ("break", 6), ("main", 12), ("outro", 8)],
          ocean=True, seagulls=False, keys=False, pluck=True, lead=True, guitar=True, congas=True,
          pad_cutoff=1200.0, lead_octave=1, sidechain=False, kick_punch=0.6,
          acid=True, acid_level=0.6, acid_density=0.45, acid_cutoff=260.0, acid_q=5.0),
-    dict(nr=5, title="White Isle Nights", seed=5505, bpm=118, root=57, scale="minor", style="house",
+    dict(nr=5, title="Puerto Banús Nights", seed=5505, bpm=118, root=57, scale="minor", style="house",
          progression=[(0, "7"), (5, "7"), (0, "7"), (4, "7")],
          sections=[("intro", 8), ("groove", 12), ("build", 8), ("main", 16), ("break", 8), ("build", 4), ("main", 16), ("outro", 8)],
          ocean=False, keys=False, pluck=True, lead=True, guitar=False, congas=False,
          pad_cutoff=1900.0, pad_level=1.1, pluck_brightness=2800.0,
          acid=True, acid_level=1.0, acid_density=0.75, acid_cutoff=450.0, acid_q=8.5, acid_env=3000.0,
-         stabs=True, stab_pattern=[4, 12], stab_cutoff=2000.0, house_kit=True),
-    dict(nr=6, title="Formentera Ferry", seed=6606, bpm=94, root=64, scale="major", style="downtempo",
+         stabs=True, stab_pattern=[4, 12], stab_cutoff=2000.0, house_kit=True,
+         trance=True, trance_level=0.9, trance_cutoff=3000.0),
+    dict(nr=6, title="Sierra Blanca Drift", seed=6606, bpm=94, root=64, scale="major", style="downtempo",
          progression=[(0, "9"), (3, "9"), (5, "7"), (4, "7")],
          sections=[("intro", 8), ("groove", 12), ("main", 12), ("break", 8), ("main", 12), ("outro", 10)],
          ocean=True, seagulls=True, keys=True, pluck=False, lead=True, guitar=True, congas=True,
          pad_cutoff=1000.0, keys_pattern=[0, 6, 10, 13], kick_punch=0.7),
-    dict(nr=7, title="Dalt Vila Echoes", seed=7707, bpm=110, root=60, scale="minor", style="house",
+    dict(nr=7, title="Casco Antiguo Echoes", seed=7707, bpm=110, root=60, scale="minor", style="house",
          progression=[(0, "7"), (6, "7"), (5, "9"), (6, "7")],
          sections=[("intro", 6), ("groove", 12), ("build", 6), ("main", 16), ("break", 8), ("main", 12), ("outro", 8)],
          ocean=False, keys=True, pluck=True, lead=True, guitar=False, congas=True,
          pad_cutoff=1400.0, keys_pattern=[0, 7, 10], lead_level=0.8,
          acid=True, acid_level=0.8, acid_density=0.6, acid_cutoff=360.0, acid_q=6.5,
          stabs=True, stab_pattern=[2, 10], stab_cutoff=1800.0, house_kit=True),
-    dict(nr=8, title="Playa d'en Bossa, 6 a.m.", seed=8808, bpm=96, root=53, scale="dorian", style="downtempo",
+    dict(nr=8, title="Playa de Nagüeles, 6 a.m.", seed=8808, bpm=96, root=53, scale="dorian", style="downtempo",
          progression=[(0, "9"), (2, "7"), (5, "7"), (3, "7")],
          sections=[("intro", 10), ("groove", 12), ("main", 12), ("break", 8), ("main", 10), ("outro", 12)],
          ocean=True, seagulls=True, keys=True, pluck=False, lead=True, guitar=True, congas=False,
@@ -964,7 +1138,7 @@ def main():
                               duration_s=round(dur, 1), file=slug + ".mp3"))
 
     with open(os.path.join(args.out, "tracklist.json"), "w", encoding="utf-8") as fh:
-        json.dump(dict(album=ALBUM_TITLE, license="CC0-1.0", tracks=tracklist), fh, ensure_ascii=False, indent=2)
+        json.dump(dict(album=ALBUM_TITLE, artist=ALBUM_ARTIST, year=2026, license="CC0-1.0", tracks=tracklist), fh, ensure_ascii=False, indent=2)
     print("fertig:", args.out)
 
 

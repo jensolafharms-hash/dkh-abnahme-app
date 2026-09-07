@@ -1,20 +1,22 @@
-# Isla Blanca – Balearic Chill Sessions
+# DJ Jensi – Sounds of Marbella 2026
 
 Ein komplettes, **algorithmisch komponiertes und synthetisiertes** Chillout-Album
-im Ibiza-/Balearic-Stil mit House- und Acid-Elementen: 8 Tracks, je ca. 3:50 bis
-4:30 Minuten, erzeugt von einem einzigen Python-Skript ohne Samples, Loops,
-Presets oder fremde Kompositionen.
+im Balearic-/Costa-del-Sol-Stil mit House-, Acid- und dezenten Trance-Elementen:
+8 Tracks, je ca. 3:55 bis 4:30 Minuten (34 Minuten gesamt), erzeugt von einem
+einzigen Python-Skript ohne Samples, Loops, Presets oder fremde Kompositionen.
+Cover-Artwork (Front, Rückseite, CD-Inlay, Druck-PDF) entsteht ebenfalls
+prozedural in `make_cover.py`.
 
 | Nr | Titel                      | BPM | Tonart    | Charakter                                   |
 |----|----------------------------|-----|-----------|---------------------------------------------|
-| 1  | Cala Salada Sunrise        | 98  | A minor   | Downtempo, Meeresrauschen, E-Piano, Lead              |
-| 2  | Es Vedrà Horizon           | 106 | D dorian  | Soft House, dezente Acid-Line, Gitarre, 909-Hats      |
-| 3  | Salinas Breeze             | 112 | B minor   | Balearic House, Square-Acid, Chord-Stabs, E-Piano     |
-| 4  | Benirràs Drum Circle       | 102 | G dorian  | Downtempo-Acid, Congas, Gitarre                       |
-| 5  | White Isle Nights          | 118 | A minor   | Deep/Acid House, Sidechain-Pads, Stabs, Nacht-Vibe    |
-| 6  | Formentera Ferry           | 94  | E major   | Sonniges Downtempo, Möwen, Gitarre                    |
-| 7  | Dalt Vila Echoes           | 110 | C minor   | Dub-House, Acid-Line, Stabs, E-Piano, Delays          |
-| 8  | Playa d'en Bossa, 6 a.m.   | 96  | F dorian  | Sonnenaufgangs-Outro, Wellen, weiche Pads             |
+| 1  | La Fontanilla Sunrise      | 98  | A minor   | Downtempo, Meeresrauschen, E-Piano, Lead                    |
+| 2  | La Concha Horizon          | 106 | D dorian  | Soft House, dezente Acid-Line, Gitarre, Trance-Arp          |
+| 3  | Golden Mile Breeze         | 112 | B minor   | Balearic House, Square-Acid, Stabs, Supersaw-Hook, Riser    |
+| 4  | Cabopino Drum Circle       | 102 | G dorian  | Downtempo-Acid, Congas, Gitarre                             |
+| 5  | Puerto Banús Nights        | 118 | A minor   | Deep/Acid House, Sidechain-Pads, Stabs, Trance-Hook         |
+| 6  | Sierra Blanca Drift        | 94  | E major   | Sonniges Downtempo, Möwen, Gitarre                          |
+| 7  | Casco Antiguo Echoes       | 110 | C minor   | Dub-House, Acid-Line, Stabs, E-Piano, Delays                |
+| 8  | Playa de Nagüeles, 6 a.m.  | 96  | F dorian  | Sonnenaufgangs-Outro, Wellen, weiche Pads                   |
 
 Fertige MP3s (192 kbit/s) liegen in `out/`, die Trackliste in `out/tracklist.json`.
 
@@ -51,6 +53,10 @@ Instrumentierung anpassen; ein neuer `seed` ergibt neue Melodien und Rhythmen.
 - **House-Elemente**: Chord-Stabs (kurze, filtergeformte Akkorde auf Offbeats),
   metallische Open Hats aus unharmonischen Rechteckwellen, Four-on-the-Floor
   mit Sidechain.
+- **Trance-Elemente (chillig dosiert)**: rollendes 16tel-Arpeggio aus hellen
+  Plucks, breiter 7-fach-Supersaw-Hook mit langer Release in der zweiten Hälfte
+  der Main-Parts, Noise-Riser mit aufsteigendem Filter im Build-Up
+  (Tracks 2, 3 und 5).
 - **Atmosphäre**: Wellenrauschen und Möwenrufe aus moduliertem Rauschen und
   gleitenden Sinustönen.
 - **Komposition**: Akkordfolgen aus Stufen der jeweiligen Skala (Moll, Dorisch,
@@ -98,6 +104,22 @@ sind nicht aus dem Skript nachweisbar.
   o. Ä. hochlädt, sollte sie vorher nicht über einen Dritten mit Content-ID
   registrieren lassen, sonst könnten andere Nutzer der CC0-Dateien fälschlich
   Claims erhalten.
+
+## Cover
+
+```bash
+pip install pillow
+python3 make_cover.py
+```
+
+Erzeugt in `cover/`: `front.png` (3000 × 3000, Streaming/Digital), `front-1400.jpg`,
+`back.png` (Rückseite mit Tracklist, Laufzeiten, Impressum), `cd-inlay-back.png`
+(CD-Tray-Inlay 150 × 118 mm, 300 dpi, mit zwei Rücken) und `cover.pdf`
+(Front 120 × 120 mm + Inlay, druckfertig). Das „J“ in „DJ Jensi“ ist wie
+gewünscht spiegelverkehrt gesetzt. Die Laufzeiten werden aus den
+Track-Definitionen berechnet und stimmen mit den MP3s überein.
+Impressum-Daten stehen im Dictionary `IMPRESSUM` am Anfang von `make_cover.py`;
+die Anschrift ist noch ein Platzhalter.
 
 ## Grenzen
 

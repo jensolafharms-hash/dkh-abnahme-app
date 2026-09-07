@@ -295,9 +295,6 @@ def make_front(S=3000):
     d = ImageDraw.Draw(img)
     # Strand-/Uferband unten
     d.rectangle((0, int(S * 0.90), S, S), fill=(10, 8, 22))
-    palm(img, int(S * 0.13), int(S * 0.905), int(S * 0.42), lean=0.10, scale=1.15, seed=3)
-    palm(img, int(S * 0.90), int(S * 0.905), int(S * 0.36), lean=-0.16, scale=1.0, seed=8)
-    palm(img, int(S * 0.22), int(S * 0.905), int(S * 0.24), lean=0.22, scale=0.75, seed=12)
     img = vignette(img, 0.45)
     img = add_grain(img, 5)
 
@@ -313,7 +310,6 @@ def make_front(S=3000):
     # Tagline unten
     fnt = font(F_SANS, S * 0.020)
     center_text(d, S, int(S * 0.935), TAGLINE.upper(), fnt, (210, 200, 220), spacing=int(S * 0.004))
-    center_text(d, S, int(S * 0.965), "GEMA-FREI  ·  CC0", font(F_SANS, S * 0.014), (150, 140, 170), spacing=int(S * 0.004))
     return img
 
 
@@ -359,9 +355,6 @@ def dark_panel(img, box, alpha=215, radius=40):
 def impressum_lines():
     return [
         "Alle Titel komponiert, arrangiert, produziert und gemischt von DJ Jensi.",
-        "Klangerzeugung vollständig synthetisch (generate_album.py) – keine Samples, keine fremden Werke.",
-        "Diese Aufnahmen sind nicht bei der GEMA oder einer anderen Verwertungsgesellschaft angemeldet.",
-        "Veröffentlicht unter CC0 1.0 Universal (Public Domain Dedication).",
         "",
         f"Impressum:  {IMPRESSUM['Künstler']}  ·  {IMPRESSUM['Verantwortlich']}",
         "",
@@ -376,7 +369,6 @@ def make_back(S=3000):
     d = ImageDraw.Draw(img)
     mountain(d, S, horizon, (30, 14, 56), peak_x=int(S * 0.25), peak_y=int(S * 0.70), spread=S * 0.18)
     img = sea(img, horizon, S, base=(10, 16, 40), light=(255, 170, 120), cx=int(S * 0.78), rng=np.random.default_rng(11))
-    palm(img, int(S * 0.06), S, int(S * 0.30), lean=0.12, scale=0.8, seed=5)
     img = vignette(img, 0.4)
     img = add_grain(img, 4)
     d = ImageDraw.Draw(img)

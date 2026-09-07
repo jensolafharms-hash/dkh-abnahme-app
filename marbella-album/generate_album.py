@@ -236,6 +236,14 @@ def ride(rng, level=0.14):
     return to_stereo(x * level / 3.0, 0.35)
 
 
+def crash(rng, level=0.35):
+    n = int(2.8 * SR)
+    t = np.arange(n) / SR
+    x = bandpass(rng.standard_normal(n), 2500.0, 13000.0) * np.exp(-t * 1.6)
+    x += 0.4 * highpass(rng.standard_normal(n), 7000.0) * np.exp(-t * 5.0)
+    return to_stereo(x * level, 0.0)
+
+
 def conga(rng, freq=190.0, level=0.5, pan=0.0):
     n = int(0.3 * SR)
     t = np.arange(n) / SR
@@ -387,7 +395,7 @@ def ocean(rng, n, level=0.12):
         pos += period
     env = 0.25 + 0.75 * env / (env.max() + 1e-9)
     hiss = highpass(rng.standard_normal((n, 2)), 3000.0) * 0.12 * (env[:, None] ** 2)
-    return (noise * env[:, None] + hiss) * level
+    return (noise * env[:, None] + hiss) * level, env
 
 
 def seagulls(rng, n, level=0.05, count=6):
@@ -596,7 +604,7 @@ class Track:
             sections = [(name, int(round(bars * LENGTH_SCALE))) for name, bars in sections]
         self.sections = sections
         self.total_bars = sum(b for _, b in sections)
-        self.n = int((self.total_bars * self.bar + 6.0) * SR)
+        self.n = int((self.total_bars * self.bar + 9.0) * SR)
         self.layers = {k: np.zeros((self.n, 2)) for k in
                        ("drums", "perc", "bass", "pad", "keys", "pluck", "lead", "guitar", "atmos", "acid", "stab", "trance")}
         self.kick_times = []
@@ -609,6 +617,29 @@ class Track:
     def chord_for_bar(self, bar):
         deg, kind = self.prog[bar % len(self.prog)]
         return deg, kind
+
+    def energy(self, bar):
+        """0..1: langsamer, beständiger Aufbau bis zum Höhepunkt, danach Ausklang."""
+        p = bar / max(1, self.total_bars)
+        peak_at = self.spec.get("peak_at", 0.64)
+        plateau = self.spec.get("plateau", 0.10)
+        if p < peak_at:
+            u = p / peak_at
+            return 0.06 + 0.94 * (u ** 1.4)
+        if p < peak_at + plateau:
+            return 1.0
+        q = (p - peak_at - plateau) / max(1e-6, 1.0 - peak_at - plateau)
+        return max(0.0, (1.0 - q) ** 1.6)
+
+    def phase(self, bar):
+        p = bar / max(1, self.total_bars)
+        peak_at = self.spec.get("peak_at", 0.64)
+        plateau = self.spec.get("plateau", 0.10)
+        if p < peak_at:
+            return "rise"
+        if p < peak_at + plateau:
+            return "peak"
+        return "fall"
 
     def sections_bars_at(self, bar):
         acc = 0
@@ -663,9 +694,12 @@ class Track:
         rng = self.rng
         style = spec.get("style", "house")
         beat16 = int(self.beat / 4.0 * SR)
+        T = self.total_bars
 
-        motif_a = self.make_motif(32, octave=spec.get("lead_octave", 1))
-        motif_b = self.make_motif(32, octave=spec.get("lead_octave", 1))
+        # Motive: drei Grundmotive, pro 8-Takt-Phrase nach Plan A A B C, Variation je Phrase
+        oct_lead = spec.get("lead_octave", 1)
+        motifs = [self.make_motif(32, octave=oct_lead) for _ in range(3)]
+        motif_plan = [0, 0, 1, 2]
         arp_pattern = rng.permutation(4).tolist() + rng.permutation(4).tolist()
         conga_pattern = sorted(rng.choice(16, size=int(rng.integers(4, 7)), replace=False).tolist())
         conga_pitches = rng.choice([150.0, 190.0, 240.0, 300.0], size=len(conga_pattern)).tolist()
@@ -673,7 +707,6 @@ class Track:
         hat_vel = 0.55 + 0.45 * rng.random(16)
         hat_vel[[2, 6, 10, 14]] = 1.0
 
-        # Acid-Sequenz: 16 Schritte, jeder Schritt (Intervall in Halbtönen | None, accent, slide)
         acid_steps = []
         intervals = [0, 0, 0, 12, 7, 10, 3, 5, -12, 12]
         for st in range(16):
@@ -691,7 +724,6 @@ class Track:
         bass_steps_house = [0, 2, 4, 6, 8, 10, 12, 14] if rng.random() < 0.6 else [0, 3, 6, 8, 11, 14]
         bass_steps_down = [0, 7, 10]
 
-        # Drum-/Perc-Sounds einmal erzeugen (Variation über Lautstärke/Filter)
         kick_s = kick(rng, punch=spec.get("kick_punch", 1.0))
         hat_c = hat(rng, 0.045, 8500.0, 0.28)
         hat_o = hat(rng, 0.16, 6500.0, 0.22)
@@ -700,148 +732,205 @@ class Track:
         rim_s = rim(rng, 0.2)
         snare_s = snare_layer(rng, 0.3)
         ride_s = ride(rng, 0.13)
+        crash_s = crash(rng, 0.3)
         congas = [conga(rng, p, 0.45, rng.uniform(-0.5, 0.5)) for p in conga_pitches]
 
-        for bar in range(self.total_bars):
-            sec, frac = self.section_at(bar)
-            deg, kind = self.chord_for_bar(bar)
+        # Dramaturgie-Marken
+        peak_bar = next(b for b in range(T) if self.phase(b) == "peak")
+        fall_bar = next(b for b in range(T) if self.phase(b) == "fall")
+        riser_bars = min(8, max(2, peak_bar // 3))
+        breath_bars = {peak_bar - 2, peak_bar - 1} if peak_bar >= 4 else set()
+        self.fall_sample = self.s(fall_bar)
+        prog_main = self.prog
+        prog_peak = spec.get("progression_peak", prog_main[1:] + prog_main[:1])
+
+        # Ozean: die ganze Zeit vorhanden, laut am Anfang und vor allem am Ende
+        ocean_sig, wave_env = ocean(rng, self.n, level=0.24)
+        self.wave_env = wave_env
+        bar_gain = np.array([float(np.clip(1.0 - self.energy(b) * 1.7, 0.10, 1.0)) for b in range(T)] + [1.0, 1.0])
+        bar_pos = np.array([self.s(b) for b in range(T)] + [self.s(T), self.n - 1])
+        ocean_gain = np.interp(np.arange(self.n), bar_pos, bar_gain)
+        ocean_gain = lowpass(ocean_gain, 0.5)
+        self.layers["atmos"] += ocean_sig * ocean_gain[:, None]
+        if spec.get("seagulls", False):
+            gulls = seagulls(rng, self.n, 0.045, count=6)
+            self.layers["atmos"] += gulls * ocean_gain[:, None]
+
+        prev_acid = None
+        for bar in range(T):
+            E = self.energy(bar)
+            ph = self.phase(bar)
+            phrase = bar // 8
+            pos = bar % 8
+            fill_bar = (pos == 7) and ph != "fall"
+            intensity = E
+
+            # Harmonik: am Höhepunkt gedrehte Folge, im Ausklang halbes Tempo der Akkordwechsel
+            if ph == "peak":
+                prog = prog_peak
+                idx = bar % len(prog)
+            elif ph == "fall" and E < 0.45:
+                prog = prog_main
+                idx = (bar // 2) % len(prog)
+            else:
+                prog = prog_main
+                idx = bar % len(prog)
+            deg, kind = prog[idx]
             chord_midis = chord(self.root, self.scale, deg, kind, octave=0)
             bass_midi = scale_degree_midi(self.root, self.scale, deg, -2)
             if bass_midi > 45:
                 bass_midi -= 12
             bar_s = self.s(bar)
 
-            drums_on = sec in ("groove", "main", "build") or (sec == "outro" and frac < 0.5)
-            full_kit = sec in ("main",) or (sec == "groove" and frac > 0.5)
-            pad_on = sec != "intro" or frac > 0.3
-            keys_on = sec in ("intro", "break", "outro", "groove") and spec.get("keys", True)
-            pluck_on = sec in ("groove", "main", "build") and spec.get("pluck", True)
-            lead_on = sec in ("main", "break") and spec.get("lead", True)
-            guitar_on = spec.get("guitar", False) and sec in ("intro", "break", "outro", "main")
-            perc_on = sec in ("groove", "main", "build", "break") and spec.get("perc", True)
-            intensity = {"intro": 0.35, "groove": 0.7, "build": 0.8, "main": 1.0, "break": 0.5, "outro": 0.4}[sec]
+            # Schichten-Gating an der Energiekurve
+            rising = ph == "rise"
+            falling = ph == "fall"
+            in_breath = bar in breath_bars
+            kick_on = E > 0.45 and not in_breath
+            hats_full = E > 0.62 and not in_breath
+            hats_off = E > 0.33 and not in_breath
+            bass_on = E > 0.30 and not in_breath
+            perc_on = E > 0.12 and spec.get("perc", True)
+            keys_on = spec.get("keys", True) and ((rising and 0.08 < E < 0.62) or (falling and E < 0.7))
+            guitar_on = spec.get("guitar", False) and ((rising and 0.12 < E < 0.78) or (falling and E < 0.6))
+            pluck_on = spec.get("pluck", True) and E > 0.5 and not in_breath
+            acid_on = spec.get("acid", False) and E > 0.55 and not in_breath
+            stab_on = spec.get("stabs", False) and E > 0.78 and not in_breath
+            trance_arp_on = spec.get("trance", False) and E > 0.7
+            hook_on = spec.get("trance", False) and ph == "peak"
+            lead_on = spec.get("lead", True) and ((rising and 0.58 < E < 0.97) or ph == "peak" or (falling and 0.28 < E < 0.85))
 
             # --- Drums -------------------------------------------------------
-            if drums_on:
+            if kick_on:
                 ks = kick_steps_house if style == "house" else kick_steps_down
                 for st in ks:
-                    if sec == "build" and frac > 0.75 and st not in (0, 8):
-                        continue
-                    pos = bar_s + st * beat16
-                    place(self.layers["drums"], pos, kick_s * (0.85 + 0.15 * intensity))
-                    self.kick_times.append(pos)
-                if full_kit or sec == "build":
+                    if fill_bar and st >= 12 and phrase % 2 == 1:
+                        continue  # Fill: letztes Viertel ohne Kick
+                    pos_s = bar_s + st * beat16
+                    kick_gain = 0.4 + 0.6 * float(np.clip((E - 0.45) / 0.4, 0.0, 1.0))
+                    place(self.layers["drums"], pos_s, kick_s * kick_gain)
+                    self.kick_times.append(pos_s)
+                if hats_full:
                     for st in range(16):
-                        if st % 2 == 1 and rng.random() > 0.35 and not full_kit:
-                            continue
                         h = (ohat if spec.get("house_kit", False) else hat_o) if st in (2, 6, 10, 14) else hat_c
                         vel = hat_vel[st] * (0.6 if st % 2 == 1 else 1.0)
+                        if phrase % 2 == 1 and st % 4 == 3:
+                            vel *= 0.4
                         place(self.layers["drums"], bar_s + st * beat16 + int(rng.normal(0, 0.0015) * SR), h * vel)
                     for st in (4, 12):
                         place(self.layers["drums"], bar_s + st * beat16, clap_s * (0.8 + 0.2 * rng.random()))
                         place(self.layers["drums"], bar_s + st * beat16, snare_s * (0.9 if style == "house" else 0.6))
-                    if style == "house" and sec == "main":
+                    if style == "house" and E > 0.85:
                         for st in range(0, 16, 2):
                             place(self.layers["drums"], bar_s + st * beat16 + int(rng.normal(0, 0.001) * SR),
                                   ride_s * (1.0 if st % 4 == 0 else 0.7))
-                else:
+                elif hats_off:
                     for st in (2, 6, 10, 14):
                         place(self.layers["drums"], bar_s + st * beat16, hat_o * 0.7)
-                    if sec == "groove":
+                    if E > 0.5:
                         for st in range(0, 16, 2):
                             place(self.layers["drums"], bar_s + st * beat16, hat_c * 0.5)
-                if sec == "build" and frac > 0.5:
-                    for st in range(0, 16, 2 if frac < 0.85 else 1):
-                        place(self.layers["drums"], bar_s + st * beat16, rim_s * (0.4 + 0.6 * frac))
+                if fill_bar:
+                    # Fill auf dem letzten Viertel: Snare-/Rim-Lauf mit ansteigender Lautstärke
+                    for k, st in enumerate((12, 13, 14, 15)):
+                        place(self.layers["drums"], bar_s + st * beat16, (snare_s if phrase % 2 else rim_s) * (0.35 + 0.2 * k))
+            elif hats_off and not in_breath:
+                for st in (2, 6, 10, 14):
+                    place(self.layers["drums"], bar_s + st * beat16, hat_o * 0.55)
+            if in_breath and bar == peak_bar - 1:
+                for st in range(16):  # Snare-Roll in die Explosion
+                    place(self.layers["drums"], bar_s + st * beat16, snare_s * (0.3 + 0.7 * st / 15))
+            if bar == peak_bar:
+                place(self.layers["drums"], bar_s, crash_s)
+            if bar == fall_bar and spec.get("trance", False):
+                place(self.layers["drums"], bar_s, crash_s * 0.6)
 
-            # --- Percussion ----------------------------------------------------
+            # --- Percussion ---------------------------------------------------
             if perc_on:
+                dens = 0.6 * E + 0.2
                 for st in range(16):
                     vel = 1.0 if st in shaker_accents else 0.45
-                    if st % 2 == 0 or rng.random() < 0.6:
+                    if st % 2 == 0 or rng.random() < dens:
                         place(self.layers["perc"], bar_s + st * beat16 + int(rng.normal(0, 0.002) * SR),
-                              shaker_s * vel * intensity)
+                              shaker_s * vel * (0.5 + 0.5 * E))
                 if spec.get("congas", True):
                     for st, cg in zip(conga_pattern, congas):
-                        if rng.random() < 0.85:
+                        if rng.random() < 0.55 + 0.35 * E:
                             place(self.layers["perc"], bar_s + st * beat16 + int(rng.normal(0, 0.003) * SR),
-                                  cg * (0.7 + 0.3 * rng.random()) * intensity)
+                                  cg * (0.7 + 0.3 * rng.random()) * (0.6 + 0.4 * E))
 
             # --- Bass --------------------------------------------------------
-            if drums_on or sec == "break":
-                bs = bass_steps_house if style == "house" else bass_steps_down
-                if sec == "break":
-                    bs = [0]
+            if bass_on:
+                if kick_on:
+                    bs = bass_steps_house if style == "house" else bass_steps_down
+                else:
+                    bs = [0, 8]  # ohne Kick: lange, gleitende Töne
                 for i, st in enumerate(bs):
                     nxt = bs[i + 1] if i + 1 < len(bs) else 16
-                    hold = int((nxt - st) * beat16 * (0.6 if style == "house" else 0.9))
+                    hold = int((nxt - st) * beat16 * ((0.6 if style == "house" else 0.9) if kick_on else 0.95))
                     m = bass_midi
-                    if style == "house" and st in (6, 14):
+                    if style == "house" and st in (6, 14) and kick_on:
                         m = bass_midi + (12 if rng.random() < 0.5 else 7)
                     if st == 11 and rng.random() < 0.5:
                         m = bass_midi + 12
                     vel = 1.0 if st in (0, 8) else 0.85
                     place(self.layers["bass"], bar_s + st * beat16,
-                          synth_bass(rng, float(midi_to_hz(m)), hold, level=0.8 * vel * (0.8 + 0.2 * intensity),
-                                     cutoff=spec.get("bass_cutoff", 700.0) * (0.7 + 0.5 * intensity)))
+                          synth_bass(rng, float(midi_to_hz(m)), hold, level=0.8 * vel * (0.75 + 0.25 * E),
+                                     cutoff=spec.get("bass_cutoff", 700.0) * (0.55 + 0.7 * E)))
 
-            # --- Pad ---------------------------------------------------------
-            if pad_on:
-                voicing = [m + 12 for m in chord_midis]
-                voicing = [m - 12 if m > self.root + 24 + 10 else m for m in voicing]
-                hold = int(self.bar * SR * 1.02)
-                cutoff = spec.get("pad_cutoff", 1300.0) * (0.7 + 0.5 * intensity)
-                place(self.layers["pad"], bar_s - int(0.15 * SR),
-                      pad_chord(rng, voicing, hold, cutoff=cutoff, level=0.2 * spec.get("pad_level", 1.0)))
+            # --- Pad (immer, Filter folgt der Energie) --------------------------
+            voicing = [m + 12 for m in chord_midis]
+            voicing = [m - 12 if m > self.root + 24 + 10 else m for m in voicing]
+            if ph == "peak":
+                voicing.append(chord_midis[0] + 24)
+            hold = int(self.bar * SR * 1.02)
+            cutoff = spec.get("pad_cutoff", 1300.0) * (0.45 + 0.95 * E)
+            place(self.layers["pad"], bar_s - int(0.15 * SR),
+                  pad_chord(rng, voicing, hold, cutoff=cutoff, level=0.2 * spec.get("pad_level", 1.0) * (1.2 - 0.3 * E)))
 
-            # --- Keys (E-Piano) ---------------------------------------------
+            # --- Keys (E-Piano): früh und im Ausklang, dort immer spärlicher ------------
             if keys_on:
-                voicing = [m + 12 for m in chord_midis[:4]]
+                voicing_k = [m + 12 for m in chord_midis[:4]]
                 pattern = spec.get("keys_pattern", [0, 6, 10])
+                prob = 0.85 if rising else float(np.clip(0.25 + E, 0.2, 0.9))
                 for st in pattern:
-                    if rng.random() < 0.15:
+                    if rng.random() > prob:
                         continue
                     hold = int(self.beat * SR * rng.uniform(0.9, 1.8))
                     strum = 0
-                    for m in voicing:
+                    notes = voicing_k if (rising or E > 0.35) else rng.choice(voicing_k, size=2, replace=False)
+                    for m in notes:
                         place(self.layers["keys"], bar_s + st * beat16 + strum,
-                              ep_keys(rng, m, hold, level=0.16, pan=rng.uniform(-0.4, 0.4)))
+                              ep_keys(rng, m, hold, level=0.24, pan=rng.uniform(-0.4, 0.4)))
                         strum += int(rng.uniform(0.008, 0.02) * SR)
 
-            # --- Pluck-Arpeggio ---------------------------------------------
+            # --- Pluck-Arpeggio, Richtung wechselt pro Phrase ---------------------------
             if pluck_on:
-                notes = [m + 24 for m in chord_midis]
-                notes = notes[:4]
+                notes = [m + 24 for m in chord_midis][:4]
                 step = 2 if style == "house" else 4
+                order = arp_pattern if phrase % 2 == 0 else arp_pattern[::-1]
                 for i, st in enumerate(range(0, 16, step)):
-                    if sec == "groove" and rng.random() < 0.3:
+                    if E < 0.7 and rng.random() < 0.3:
                         continue
-                    idx = arp_pattern[i % len(arp_pattern)] % len(notes)
-                    m = notes[idx]
+                    m = notes[order[i % len(order)] % len(notes)]
                     if rng.random() < 0.12:
                         m += 12
                     hold = int(beat16 * step * 0.55)
                     place(self.layers["pluck"], bar_s + st * beat16,
-                          pluck(rng, m, hold, level=0.22 * intensity, brightness=spec.get("pluck_brightness", 2400.0),
+                          pluck(rng, m, hold, level=0.22 * (0.5 + 0.5 * E), brightness=spec.get("pluck_brightness", 2400.0) * (0.6 + 0.6 * E),
                                 pan=(-0.5 if i % 2 else 0.5) * 0.6))
 
-            # --- Acid-Line (303-Stil) ------------------------------------------
-            acid_on = spec.get("acid", False) and sec in ("groove", "main", "build", "break")
+            # --- Acid-Line ----------------------------------------------------------
             if acid_on:
                 root_m = scale_degree_midi(self.root, self.scale, deg, -1)
                 if root_m > 50:
                     root_m -= 12
                 prev = None
-                variation = (bar // 4) % 3
+                variation = phrase % 3
+                dens = float(np.clip((E - 0.5) * 2.2, 0.3, 1.0))
                 for st in range(16):
                     ev = acid_steps[(st + (4 if variation == 2 else 0)) % 16]
-                    if ev is None:
-                        prev = None
-                        continue
-                    if sec == "groove" and st % 2 == 1:
-                        prev = None
-                        continue
-                    if sec == "break" and st not in (0, 6, 8, 11):
+                    if ev is None or (st % 2 == 1 and rng.random() > dens):
                         prev = None
                         continue
                     iv, acc, slide = ev
@@ -849,95 +938,84 @@ class Track:
                         iv = 7 if iv == 0 else iv
                     m = root_m + iv
                     hold = int(beat16 * (1.6 if slide else 0.55))
-                    cut = spec.get("acid_cutoff", 380.0) * (0.75 + 0.6 * intensity)
-                    if sec == "build":
-                        cut *= 1.0 + 1.5 * frac
+                    cut = spec.get("acid_cutoff", 380.0) * (0.6 + 1.4 * E)
                     place(self.layers["acid"], bar_s + st * beat16,
                           acid_note(rng, m, hold, prev_midi=prev if slide else None, accent=acc,
-                                    level=0.34 * spec.get("acid_level", 1.0) * (0.7 + 0.3 * intensity),
+                                    level=0.34 * spec.get("acid_level", 1.0) * (0.6 + 0.4 * E),
                                     base_cut=cut, env_amount=spec.get("acid_env", 2400.0),
                                     q=spec.get("acid_q", 7.0), wave=spec.get("acid_wave", "saw")))
                     prev = m
 
-            # --- House-Chord-Stabs ---------------------------------------------
-            if spec.get("stabs", False) and sec in ("main", "build") and (full_kit or sec == "build"):
-                voicing = [m + 12 for m in chord_midis[:4]]
+            # --- House-Chord-Stabs -----------------------------------------------------
+            if stab_on:
+                voicing_s = [m + 12 for m in chord_midis[:4]]
                 for st in stab_steps:
                     if rng.random() < 0.15:
                         continue
                     place(self.layers["stab"], bar_s + st * beat16,
-                          house_stab(rng, voicing, int(beat16 * 1.2), level=0.26 * intensity,
+                          house_stab(rng, voicing_s, int(beat16 * 1.2), level=0.26 * E,
                                      cutoff=spec.get("stab_cutoff", 2200.0), pan=rng.uniform(-0.3, 0.3)))
 
-            # --- Trance: Arpeggio, Supersaw-Hook, Riser ---------------------------
-            if spec.get("trance", False):
+            # --- Trance: Arpeggio, Hook am Höhepunkt, Riser davor --------------------------
+            if trance_arp_on and not in_breath:
                 arp_tones = sorted({m + 12 for m in chord_midis[:4]} | {m + 24 for m in chord_midis[:2]})
-                order = arp_tones + arp_tones[-2:0:-1]  # auf und ab
-                if sec in ("main", "build") and (full_kit or sec == "build"):
-                    for st in range(16):
-                        if st % 4 == 3 and rng.random() < 0.35:
-                            continue
-                        m = order[(st + bar * 2) % len(order)]
-                        place(self.layers["trance"], bar_s + st * beat16,
-                              trance_pluck(rng, m, int(beat16 * 0.6),
-                                           level=0.16 * intensity * spec.get("trance_level", 1.0),
-                                           pan=0.55 if st % 2 else -0.55))
-                if sec == "main" and frac >= 0.5 or (sec == "break" and frac > 0.4):
-                    motif = motif_a
-                    half = (bar % 2) * 16
-                    for st, dgr, dur in motif:
-                        if not (half <= st < half + 16) or dur < 2:
-                            continue
-                        d = self.snap_to_chord(dgr, bar) if st % 4 == 0 else dgr
-                        m = scale_degree_midi(self.root, self.scale, d, 1)
-                        hold = int(dur * beat16 * 1.1)
-                        place(self.layers["trance"], bar_s + (st - half) * beat16,
-                              supersaw_lead(rng, m, hold, level=0.2 * spec.get("trance_level", 1.0),
-                                            cutoff=spec.get("trance_cutoff", 3200.0), pan=0.0))
-                if sec == "build" and frac == 0.0:
-                    n_build = int(self.sections_bars_at(bar) * self.bar * SR)
-                    place(self.layers["trance"], bar_s, riser(rng, n_build, level=0.16))
+                order = arp_tones + arp_tones[-2:0:-1]
+                for st in range(16):
+                    if st % 4 == 3 and rng.random() < 0.35:
+                        continue
+                    m = order[(st + bar * 2) % len(order)]
+                    place(self.layers["trance"], bar_s + st * beat16,
+                          trance_pluck(rng, m, int(beat16 * 0.6),
+                                       level=0.16 * E * spec.get("trance_level", 1.0),
+                                       pan=0.55 if st % 2 else -0.55))
+            if hook_on:
+                motif = motifs[motif_plan[phrase % 4]]
+                half = (bar % 2) * 16
+                for st, dgr, dur in motif:
+                    if not (half <= st < half + 16) or dur < 2:
+                        continue
+                    d = self.snap_to_chord(dgr, bar) if st % 4 == 0 else dgr
+                    m = scale_degree_midi(self.root, self.scale, d, 1)
+                    place(self.layers["trance"], bar_s + (st - half) * beat16,
+                          supersaw_lead(rng, m, int(dur * beat16 * 1.1), level=0.2 * spec.get("trance_level", 1.0),
+                                        cutoff=spec.get("trance_cutoff", 3200.0), pan=0.0))
+            if bar == peak_bar - riser_bars:
+                place(self.layers["trance"], bar_s, riser(rng, int(riser_bars * self.bar * SR), level=0.17))
 
-            # --- Lead-Melodie -----------------------------------------------
+            # --- Lead-Melodie: Motivplan, am Höhepunkt eine Oktave höher, im Ausklang Fragmente -----
             if lead_on:
-                motif = motif_a if (bar // 2) % 4 in (0, 1, 3) else motif_b
+                motif = motifs[motif_plan[phrase % 4]]
                 half = (bar % 2) * 16
                 for st, dgr, dur in motif:
                     if not (half <= st < half + 16):
                         continue
+                    if falling and (st % 4 != 0 or rng.random() > E + 0.15):
+                        continue  # spielerische Fragmente, immer weniger
                     d = self.snap_to_chord(dgr, bar) if (st % 4 == 0) else dgr
-                    m = scale_degree_midi(self.root, self.scale, d, 1)
-                    hold = int(dur * beat16 * 0.85)
+                    m = scale_degree_midi(self.root, self.scale, d, 1) + (12 if ph == "peak" and phrase % 2 else 0)
+                    hold = int(dur * beat16 * (0.85 if not falling else 1.4))
                     place(self.layers["lead"], bar_s + (st - half) * beat16,
-                          lead(rng, m, hold, level=0.24 * spec.get("lead_level", 1.0), pan=0.1))
+                          lead(rng, m, hold, level=0.24 * spec.get("lead_level", 1.0) * (0.7 + 0.3 * E), pan=0.1))
 
-            # --- Gitarre -----------------------------------------------------
+            # --- Gitarre -----------------------------------------------------------------
             if guitar_on:
-                notes = [m for m in chord_midis]
+                notes = list(chord_midis)
                 pattern = spec.get("guitar_pattern", [0, 3, 6, 8, 11, 14])
+                prob = 0.8 if rising else float(np.clip(0.2 + E, 0.15, 0.8))
                 for i, st in enumerate(pattern):
-                    if rng.random() < 0.2:
+                    if rng.random() > prob:
                         continue
                     m = notes[i % len(notes)]
                     if i % 3 == 2:
                         m += 12
                     place(self.layers["guitar"], bar_s + st * beat16,
-                          ks_guitar(rng, m, int(beat16 * 3), level=0.3, pan=rng.uniform(-0.6, 0.6)))
+                          ks_guitar(rng, m, int(beat16 * 3), level=0.4, pan=rng.uniform(-0.6, 0.6)))
 
-        # --- Atmosphäre ---------------------------------------------------------
-        if spec.get("ocean", False):
-            atm = ocean(rng, self.n, level=0.11)
-            intro_bars = self.sections[0][1]
-            outro_bars = self.sections[-1][1]
-            fade = np.ones(self.n)
-            a = int(intro_bars * self.bar * SR)
-            b = int((self.total_bars - outro_bars) * self.bar * SR)
-            fade[a:b] = np.linspace(1.0, 0.25, max(1, b - a)) ** 0.5 * 0.4 + 0.15
-            fade[b:] = np.linspace(0.4, 1.0, self.n - b)
-            self.layers["atmos"] += atm * fade[:, None]
-            if spec.get("seagulls", False):
-                self.layers["atmos"] += seagulls(rng, self.n, 0.045, count=5)
-
+        # Schlussakkord: langer Pad-Ton, der mit den Wellen ausläuft
+        deg, kind = prog_main[0]
+        final = [m + 12 for m in chord(self.root, self.scale, deg, kind, 0)][:4]
+        place(self.layers["pad"], self.s(T), pad_chord(rng, final, int(2.5 * SR), cutoff=spec.get("pad_cutoff", 1300.0) * 0.5,
+                                                      level=0.18, attack=1.0, release=3.0))
         return self.mix()
 
     def mix(self):
@@ -961,6 +1039,9 @@ class Track:
 
         pad = chorus_widen(L["pad"], rng)
         pad = reverb(pad, ir_long, 0.55) * duck[:, None]
+        if hasattr(self, "wave_env"):
+            w = np.clip((np.arange(self.n) - self.fall_sample) / (8 * self.bar * SR), 0.0, 1.0)
+            pad *= ((1.0 - w) + w * (0.5 + 0.5 * self.wave_env))[:, None]
         keys = reverb(delay(L["keys"], self.beat * 0.75, 0.35, 4, 2800.0, True, 0.25), ir_long, 0.35)
         pluck = reverb(delay(L["pluck"], self.beat * 1.5, 0.4, 5, 3000.0, True, 0.3), ir_room, 0.3) * (0.5 + 0.5 * duck[:, None])
         lead_l = reverb(delay(L["lead"], self.beat * 1.5, 0.45, 6, 2600.0, True, 0.35), ir_long, 0.45)
@@ -983,16 +1064,24 @@ class Track:
         mixv = sum(parts.values())
         mixv = highpass(mixv, 28.0)
 
+        # Dramaturgie hörbar machen: die Energiekurve steuert die Summenlautstärke
+        T = self.total_bars
+        bar_pos = np.array([self.s(b) for b in range(T)] + [self.s(T), self.n - 1])
+        bar_e = np.array([self.energy(b) for b in range(T)] + [0.0, 0.0])
+        e_gain = np.interp(np.arange(self.n), bar_pos, 0.7 + 0.3 * bar_e)
+        e_gain = lowpass(e_gain, 0.4)
+        mixv *= e_gain[:, None]
+
         # Master: Fade-In/-Out, sanfte Kompression, Peak-Normalisierung
         fade_in = int(0.5 * SR)
         mixv[:fade_in] *= np.linspace(0, 1, fade_in)[:, None]
-        tail = int(4.0 * SR)
-        mixv[-tail:] *= np.linspace(1, 0, tail)[:, None] ** 1.5
+        tail = int(5.5 * SR)
+        mixv[-tail:] *= np.linspace(1, 0, tail)[:, None] ** 1.2
         mixv = master_chain(mixv)
         return mixv
 
 
-def bus_compressor(x, threshold=0.22, ratio=3.5, attack=0.004, release=0.18):
+def bus_compressor(x, threshold=0.32, ratio=1.8, attack=0.006, release=0.25):
     """Einfacher Feed-Forward-Kompressor auf dem Summensignal (Stereo-Link)."""
     level = np.max(np.abs(x), axis=1)
     a_att = np.exp(-1.0 / (attack * SR))
@@ -1014,13 +1103,14 @@ def master_chain(x):
     x = highpass(x, 32.0)
     x = x + 0.12 * low + 0.3 * high
     # Kompression, Sättigung, Loudness
-    rms = np.sqrt(np.mean(x ** 2)) + 1e-9
-    x *= 0.16 / rms
+    # Referenz: die lauteste Passage (95. Perzentil der 1-s-RMS) bestimmt die Lautheit
+    win = SR
+    n = len(x) // win
+    blocks = np.sqrt(np.mean(x[: n * win].reshape(n, win, 2) ** 2, axis=(1, 2)))
+    loud = np.percentile(blocks, 95) + 1e-9
+    x *= 0.2 / loud
     x = bus_compressor(x)
-    x = soft_clip(x * 1.1, 1.6)
-    rms = np.sqrt(np.mean(x ** 2)) + 1e-9
-    x *= 0.17 / rms
-    x = soft_clip(x, 1.8)
+    x = soft_clip(x, 1.35)
     x *= 0.98 / (np.abs(x).max() + 1e-9)
     return x
 

@@ -134,12 +134,12 @@ def crickets(rng, n, level=0.04, count=3):
 GM = dict(kick=36, snare=38, clap=39, rim=37, hat=42, ohat=46, ride=51, crash=49, tom_l=45, tom_m=47, tom_h=50,
           cjb=36, cjs=38, secas=39, sordas=40, cast=85, conga0=63, conga1=62, conga2=64, shaker=82)
 MIDI_TRACK = {"guitar": "Guitar", "guitar_trem": "Guitar", "flute": "Flute", "trumpet": "Trumpet", "mtrumpet": "Trumpet (muted)",
-              "steel": "Steel Drum", "lead": "Lead", "hook": "Supersaw", "bell": "Bell", "choir": "Choir Lead"}
+              "steel": "Steel Drum", "lead": "Lead", "hook": "Supersaw", "bell": "Bell", "choir": "Choir Lead", "ney": "Ney", "oud": "Oud"}
 MEL_REF = {"guitar": 0.42, "guitar_trem": 0.42, "flute": 0.26, "trumpet": 0.26, "mtrumpet": 0.26, "steel": 0.16, "lead": 0.25,
-           "hook": 0.2, "bell": 0.22, "choir": 0.18}
+           "hook": 0.2, "bell": 0.22, "choir": 0.18, "ney": 0.26, "oud": 0.42}
 PROGRAM = {"Guitar": 24, "Guitar Comp": 24, "Flute": 73, "Trumpet": 56, "Trumpet (muted)": 59, "Steel Drum": 114, "Lead": 81,
            "Supersaw": 90, "Bell": 14, "Choir Lead": 52, "Choir": 52, "Pad": 89, "Bass": 33, "Sub": 38, "Acid": 38,
-           "Chords": 4, "Brass Stabs": 61, "Arp": 81}
+           "Chords": 4, "Brass Stabs": 61, "Arp": 81, "Ney": 77, "Oud": 104}
 
 
 # --------------------------------------------------------------------------- #
@@ -194,7 +194,7 @@ def mel(theme, inst, level=0.25, octave=None, pan=0.0, legato=0.9, humanize=0.00
 
 
 DEFAULT_OCT = {"guitar": 0, "guitar_trem": 0, "flute": 12, "trumpet": 12, "mtrumpet": 12, "steel": 12, "lead": 12,
-               "hook": 12, "bell": 12, "choir": 0}
+               "hook": 12, "bell": 12, "choir": 0, "ney": 12, "oud": 0}
 
 
 class Track:
@@ -252,6 +252,11 @@ class Track:
             return "guitar", tremolo_note(rng, midi, hold, level=vel * 0.8, pan=pan)
         if inst == "flute":
             return "flute", flute(rng, midi, hold, level=vel, pan=pan)
+        if inst == "ney":
+            sig = flute(rng, midi, hold, level=vel, pan=pan)
+            return "flute", sig + 0.5 * bandpass(rng.standard_normal(len(sig))[:, None] * np.abs(sig).max() * 0.15, 1500.0, 5000.0)
+        if inst == "oud":
+            return "guitar", lowpass(nylon_guitar(rng, midi, hold, level=vel, pan=pan), 3200.0)
         if inst == "trumpet":
             return "brass", trumpet(rng, midi, hold, level=vel, pan=pan)
         if inst == "mtrumpet":
@@ -791,9 +796,9 @@ TRACKS = [
                melody=[mel("B", "flute", 0.25), mel("B", "guitar", 0.3, octave=0, pan=0.3, legato=0.8)], atmos=dict(waves=0.15)),
              S("groove2", 16, bpm=118, dyn=0.88, drums="house", drum_level=0.92, hats="techno16", bass="house", bass_level=0.9, bass_cut=660.0, acid=0.24, acid_cut=420.0,
                comping="pick", comp_level=0.15, pad=800, pad_level=0.55, perc=["shaker", "congas", "rimloop"], perc_level=0.85, fill=True,
-               melody=[mel("A", "guitar", 0.4, ornaments=True)], answer="flute", answer_level=0.11),
+               melody=[mel("A", "guitar", 0.4, ornaments=True)], answer="ney", answer_level=0.12),
              S("breath", 8, bpm=118, prog="quiet", dyn=0.68, pad=600, pad_level=0.7, choir="ah", choir_level=0.14, bass="one", bass_level=0.55, bass_cut=380.0, acid=0.14, acid_cut=260.0,
-               melody=[mel("frag", "guitar", 0.35, humanize=0.02, legato=1.2)], fx=["riser", "roll"], atmos=dict(waves=0.7, crickets=0.4)),
+               melody=[mel("frag", "ney", 0.26, humanize=0.02, legato=1.3)], fx=["riser", "roll"], atmos=dict(waves=0.7, crickets=0.4)),
              S("peak", 24, bpm=118, prog="refrain", dyn=1.0, drums="house", drum_level=1.0, hats="techno16", bass="house", bass_level=0.95, bass_cut=800.0, bass_drive=2.2, acid=0.3, acid_cut=520.0,
                comping="strum", comp_level=0.17, pad=1100, pad_level=0.6, choir="ah", choir_level=0.12, stabs="dub", stab_steps=(2, 7, 10, 15), stab_level=0.14,
                perc=["shaker", "congas", "palmas", "rimloop"], perc_level=0.9, fx=["crash"], fill=True,

@@ -25,6 +25,9 @@ SF_MAP = {
     "Chords": ("stab", 59, 1.0),                                          # Dub-Chords: Satz aus gestopften Trompeten
     "Percussion": ("perc", None, 1.0), "Choir": ("choir", 52, 1.0), "Choir Lead": ("choir", 52, 1.0),
     "Bell": ("bell", 14, 1.0),
+    "Pad": ("pad", 49, 1.0),                 # Streicherensemble statt Synth-Pad
+    "Ney": ("flute", 77, 1.0),               # Shakuhachi-Register als Ney
+    "Oud": ("guitar", 104, 1.0),             # Sitar-Register als Oud-Ersatz
 }
 
 
@@ -72,6 +75,11 @@ def replace_layers(track, midi_path, verbose=True):
         rms_new = np.sqrt(np.mean(sig ** 2)) + 1e-9
         if rms_old > 1e-6 and rms_new > 1e-6:
             sig *= rms_old / rms_new
+        if layer == "guitar":
+            # Flamenco-Präsenz: mehr Anschlag und Obertöne
+            from scipy import signal as _sg
+            sos = _sg.butter(2, 2500.0, "high", fs=SR, output="sos")
+            sig = sig + 0.45 * _sg.sosfilt(sos, sig, axis=0)
         track.layers[layer] = sig
         if verbose:
             print(f"      SoundFont: {layer:7s} <- {', '.join(t.name for t in tracks)}  ({20*np.log10(rms_new):.1f} -> {20*np.log10(rms_old):.1f} dBFS)", flush=True)

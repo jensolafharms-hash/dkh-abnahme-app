@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Erzeugt Web-Player-Seiten (HTML mit eingebettetem Audio), damit das Album ohne
-Zusatzprogramm im Browser läuft. Die Titel werden dafür auf 96 kbit/s
+Zusatzprogramm im Browser läuft. Die Titel werden dafür auf 88 kbit/s
 neu kodiert; die MP3s in out/ bleiben in voller Qualität.
 
     python3 make_player.py --out /pfad     # schreibt player-1.html, player-2.html
@@ -16,8 +16,8 @@ import lameenc
 import miniaudio
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PER_PAGE = 5
-BITRATE = 96
+MAX_MINUTES = 14.0
+BITRATE = 88
 
 
 def reencode(path, kbps=BITRATE):
@@ -155,7 +155,15 @@ def main():
         tl = json.load(fh)
     cover = "data:image/jpeg;base64," + base64.b64encode(open(os.path.join(HERE, "cover", "front-1400.jpg"), "rb").read()).decode()
     tracks = tl["tracks"]
-    pages = [tracks[i:i + PER_PAGE] for i in range(0, len(tracks), PER_PAGE)]
+    pages, cur, acc = [], [], 0.0
+    for tr in tracks:
+        if cur and acc + tr["duration_s"] / 60.0 > MAX_MINUTES:
+            pages.append(cur)
+            cur, acc = [], 0.0
+        cur.append(tr)
+        acc += tr["duration_s"] / 60.0
+    if cur:
+        pages.append(cur)
     for pi, group in enumerate(pages, 1):
         items = []
         for tr in group:

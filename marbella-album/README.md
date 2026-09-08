@@ -53,6 +53,30 @@ python3 make_cover.py           # Cover nach ./cover
 
 Alles ist deterministisch: gleiche Datei, gleicher Seed, identisches Ergebnis.
 
+## MIDI und Stems für die DAW
+
+```bash
+python3 album.py --export              # MIDI nach out/midi, Stems nach out/stems (MP3 320 kbit/s)
+python3 album.py --export --stems-wav  # Stems als WAV (32 Bit float, ca. 600 MB je Titel)
+```
+
+- **MIDI** (`out/midi/*.mid`, Format 1): Spur 0 trägt Tempo-Map, Taktarten
+  und Abschnittsmarker. Accelerando, Ritardando, 6/8 und der Bulería-Compás
+  (als 12/8) werden je Takt als Tempo- und Taktwechsel geschrieben, damit die
+  DAW das Raster korrekt anzeigt. Danach je Stimme eine Spur mit
+  Programmwechsel und Velocity: Drums und Percussion auf Kanal 10 (GM-Noten),
+  Bass, Sub, Gitarre (Melodie und Begleitung getrennt), Flöte, Trompete,
+  Steel Drum, Chor, Pad, Chords, Acid, Arpeggio, Lead, Glocke.
+- **Stems** (`out/stems/<titel>/`): alle 15 Spuren zeitgleich ab Sample 0,
+  mit ihren Effekten und der Abschnittsdynamik, gemeinsam so verstärkt, dass
+  ihre Summe dem Mix vor dem Master entspricht. Dazu `00-mix-master` und
+  `tempo-map.txt` (Takt, Abschnitt, Taktart, BPM, Startzeit).
+- Empfohlener Weg: MIDI in die DAW laden, die Spuren mit echten Instrumenten
+  (Gitarren-Bibliothek, Drum-Kit, Bass) belegen, Stems als Referenz oder für
+  Atmosphäre und Percussion behalten. Die Komposition bleibt dabei GEMA-frei.
+
+Die MIDI-Dateien sind im Repository, die Stems wegen ihrer Größe nicht.
+
 ## Wie die Partitur aufgebaut ist
 
 Ein Stück ist eine Liste von Abschnitten. Jeder Abschnitt legt Taktart, Tempo

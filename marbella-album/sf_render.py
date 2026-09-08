@@ -21,7 +21,8 @@ SF_MAP = {
     "Guitar": ("guitar", 24, 1.0), "Guitar Comp": ("guitar", 24, 1.0),
     "Bass": ("bass", 33, 1.0), "Sub": ("bass", 38, 1.0),
     "Flute": ("flute", 73, 1.0), "Trumpet": ("brass", 56, 1.0), "Trumpet (muted)": ("brass", 59, 1.0),
-    "Brass Stabs": ("brass", 61, 1.0), "Steel Drum": ("steel", 114, 1.0),
+    "Brass Stabs": ("brass", 61, 1.0), "Steel Drum": ("steel", 59, 1.0),   # Antworten: gestopfte Trompete statt Steel Drum
+    "Chords": ("stab", 59, 1.0),                                          # Dub-Chords: Satz aus gestopften Trompeten
     "Percussion": ("perc", None, 1.0), "Choir": ("choir", 52, 1.0), "Choir Lead": ("choir", 52, 1.0),
     "Bell": ("bell", 14, 1.0),
 }
@@ -58,7 +59,13 @@ def replace_layers(track, midi_path, verbose=True):
         part = mido.MidiFile(ticks_per_beat=mid.ticks_per_beat, type=1)
         part.tracks.append(conductor)
         for tr in tracks:
-            part.tracks.append(tr)
+            prog = SF_MAP[tr.name][1]
+            new = mido.MidiTrack()
+            for msg in tr:
+                if msg.type == "program_change" and prog is not None:
+                    msg = msg.copy(program=prog)
+                new.append(msg)
+            part.tracks.append(new)
         sig = _render_midi(part, track.n)
         old = track.layers[layer]
         rms_old = np.sqrt(np.mean(old ** 2)) + 1e-9

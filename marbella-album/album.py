@@ -365,9 +365,9 @@ class Track:
                 bar_s = self.s(cur)
                 last = b == sec["bars"] - 1
                 bass_root = tones[0]
-                while bass_root > 45:
+                while bass_root > 42:
                     bass_root -= 12
-                while bass_root < 33:
+                while bass_root < 31:
                     bass_root += 12
                 swing = P.get("swing", 0.0)
 
@@ -450,7 +450,10 @@ class Track:
                         place(self.layers["drums"], pos, snd[sound] * g * dl)
                         if sound == "kick":
                             self.kick_times.append(pos)
-                    for st, sound, g in HATS[P.get("hats", "none")]:
+                    hats_name = P.get("hats", "none")
+                    if P.get("hats_alt") and (b // 8) % 2 == 1:
+                        hats_name = P["hats_alt"]
+                    for st, sound, g in HATS[hats_name]:
                         place(self.layers["drums"], at(st) + int(rng.normal(0, 0.0015) * SR), snd[sound] * g * dl * rng.uniform(0.85, 1.0))
                     if P.get("ride"):
                         for st in range(0, steps, 2):
@@ -540,8 +543,11 @@ class Track:
                 if P.get("acid"):
                     lvl, cut = P["acid"], P.get("acid_cut", 380.0)
                     prev = None
-                    for st, iv, acc, slide in ((0, 0, True, False), (3, 0, False, False), (6, 12, False, True), (8, 0, True, False),
-                                               (10, 7, False, False), (11, 10, False, True), (14, 0, False, False), (15, 12, False, False)):
+                    seqs = (((0, 0, True, False), (3, 0, False, False), (6, 12, False, True), (8, 0, True, False), (10, 7, False, False), (11, 10, False, True), (14, 0, False, False), (15, 12, False, False)),
+                            ((0, 0, True, False), (2, 12, False, False), (6, 0, False, True), (8, 0, True, False), (11, 3, False, False), (12, 0, False, False), (14, 10, False, True)),
+                            ((0, 0, True, False), (3, 7, False, False), (4, 0, False, False), (8, 12, True, True), (10, 0, False, False), (14, 5, False, False), (15, 0, False, False)))
+                    seq = seqs[(b // 2) % 3] if b % 8 != 7 else seqs[1][:4]
+                    for st, iv, acc, slide in seq:
                         m_ = bass_root + 12 + iv
                         place(self.layers["acid"], at(st), acid_note(rng, m_, self.step_len(cur, 1.3 if slide else 0.6), prev_midi=prev if slide else None,
                                                                     accent=acc, level=lvl, base_cut=cut, env_amount=2200.0, q=6.5))
@@ -729,37 +735,38 @@ TRACKS = [
              S("end", 2, bpm=118, dyn=0.55, fx=["final_chord"], atmos=dict(waves=1.0)),
          ]),
 
-    dict(nr=2, title="La Concha Horizon", seed=2202, root=55, mode="G-Moll, andalusische Kadenz", style="Deep House, Acid",
-         scale=[0, 2, 3, 5, 7, 8, 10], themes=T_CONCHA, kick_punch=1.2, duck=0.6, bass_boost=1.2, stab_delay=3.0, stab_fb=0.5,
+    dict(nr=2, title="La Concha Horizon", seed=2202, root=55, mode="G-Moll, andalusische Kadenz", style="Deep House, Flamenco-Gitarre",
+         scale=[0, 2, 3, 5, 7, 8, 10], themes=T_CONCHA, kick_punch=1.2, duck=0.6, bass_boost=1.25, stab_delay=3.0, stab_fb=0.5,
          progs=dict(verse=["i", "VII", "VI", "V"], refrain=["VI", "VII", "i", "V7"], bridge=["iv7", "V", "iv7", "V"], climax=["VI7", "VII", "i9", "V7"]),
          sections=[
-             S("intro", 8, bpm=122, dyn=0.64, pad=700, pad_level=0.6, bass="long", bass_level=0.6, bass_cut=400.0, perc=["shaker"], perc_level=0.5,
-               melody=[mel("frag", "mtrumpet", 0.24, legato=1.3, humanize=0.02)], atmos=dict(crickets=0.3, cicadas=0.2)),
-             S("deep1", 24, bpm=122, dyn=0.8, drums="deep", drum_level=0.9, hats="eighths", bass="house", bass_level=0.88, bass_cut=560.0,
-               comping="rumba", comp_level=0.13, pad=850, pad_level=0.6, perc=["shaker", "rimloop"], perc_level=0.8, fill=True,
-               melody=[mel("A", "mtrumpet", 0.26)], answer="guitar", answer_level=0.13),
-             S("build", 8, bpm=122, dyn=0.88, drums="house", drum_level=0.92, hats="full", bass="house", bass_level=0.9, bass_cut=640.0, acid=0.2, acid_cut=340.0,
-               comping="rumba", comp_level=0.14, pad=1000, pad_level=0.6, perc=["shaker", "palmas", "rimloop"], perc_level=0.8, fill=True,
-               melody=[mel("A", "guitar", 0.38, ornaments=True)]),
-             S("chorus1", 16, bpm=122, prog="refrain", dyn=0.94, drums="house", drum_level=0.96, hats="full", bass="house", bass_level=0.92, bass_cut=720.0, acid=0.24, acid_cut=400.0,
-               comping="rumba", comp_level=0.15, pad=1300, pad_level=0.6, stabs="brass", stab_steps=(2, 10), stab_level=0.17, perc=["palmas", "shaker", "congas"], fill=True,
-               melody=[mel("B", "trumpet", 0.26), mel("B", "guitar", 0.27, octave=0, pan=0.3, legato=0.8)]),
-             S("brass_break", 8, bpm=122, prog="refrain", dyn=0.9, drums="kickonly", drum_level=1.0, hats="techno16", bass="house", bass_level=0.92, bass_cut=700.0, bass_drive=2.2, acid=0.26, acid_cut=440.0,
-               stabs="brass", stab_steps=(2, 5, 10, 13), stab_level=0.24, perc=["palmas", "rimloop"], perc_level=0.9, pad=900, pad_level=0.5, fill=True),
-             S("deep2", 16, bpm=122, dyn=0.84, drums="deep", drum_level=0.9, hats="eighths", bass="house", bass_level=0.88, bass_cut=580.0, acid=0.18, acid_cut=340.0,
-               comping="rumba", comp_level=0.13, pad=850, pad_level=0.55, perc=["shaker", "congas", "rimloop"], perc_level=0.8, melody=[mel("A", "mtrumpet", 0.26)], answer="guitar", answer_level=0.13),
-             S("chorus2", 16, bpm=122, prog="refrain", dyn=0.96, drums="house", drum_level=0.96, hats="full", bass="house", bass_level=0.92, bass_cut=740.0, acid=0.24, acid_cut=420.0,
-               comping="rumba", comp_level=0.15, pad=1350, pad_level=0.6, stabs="brass", stab_steps=(2, 10), stab_level=0.18, perc=["palmas", "shaker", "congas"], fill=True,
-               melody=[mel("B", "trumpet", 0.26), mel("B", "guitar", 0.27, octave=0, pan=0.3, legato=0.8), mel("A", "steel", 0.13, octave=24, pan=0.5, offset=8, bars=8, legato=0.6)]),
-             S("breakdown", 8, bpm=122, prog="bridge", dyn=0.7, bass="one", bass_level=0.55, bass_cut=420.0, pad=800, pad_level=0.7, acid=0.14, acid_cut=280.0, fx=["riser", "roll"],
-               melody=[mel("frag", "mtrumpet", 0.24, legato=1.3, humanize=0.02)], atmos=dict(cicadas=0.5, crickets=0.3)),
-             S("chorus3", 16, bpm=122, prog="climax", dyn=1.0, drums="house", drum_level=1.0, hats="techno16", ride=True, bass="house", bass_level=0.95, bass_cut=820.0, bass_drive=2.2, acid=0.3, acid_cut=520.0,
-               comping="rumba", comp_level=0.16, pad=1500, pad_level=0.6, stabs="brass", stab_steps=(2, 10), stab_level=0.2, perc=["palmas", "shaker", "congas", "rimloop"], perc_level=0.9,
+             S("intro", 8, bpm=122, dyn=0.64, pad=650, pad_level=0.5, perc=["cajon"], perc_level=0.5,
+               melody=[mel("A", "guitar_trem", 0.42, humanize=0.02, legato=1.0)], atmos=dict(crickets=0.3, cicadas=0.2)),
+             S("deep1", 16, bpm=122, dyn=0.8, drums="deep", drum_level=0.9, hats="eighths", bass="house", bass_level=0.9, bass_cut=560.0,
+               comping="strum", comp_level=0.14, pad=800, pad_level=0.5, perc=["shaker", "congas"], perc_level=0.75, fill=True,
+               melody=[mel("A", "guitar", 0.42, ornaments=True, bars=8), mel("A", "flute", 0.24, offset=8, bars=8)], answer="steel", answer_level=0.1),
+             S("build", 8, bpm=122, dyn=0.88, drums="house", drum_level=0.92, hats="full", bass="house", bass_level=0.92, bass_cut=640.0, acid=0.2, acid_cut=340.0,
+               comping="rumba", comp_level=0.14, pad=950, pad_level=0.5, perc=["shaker", "palmas"], perc_level=0.8, fill=True,
+               melody=[mel("A", "guitar", 0.4, ornaments=True)]),
+             S("chorus1", 16, bpm=122, prog="refrain", dyn=0.94, drums="house", drum_level=0.96, hats="full", hats_alt="techno16", bass="house", bass_level=0.94, bass_cut=720.0, acid=0.24, acid_cut=400.0,
+               comping="rumba", comp_level=0.14, pad=1200, pad_level=0.5, stabs="dub", stab_steps=(2, 10), stab_level=0.11, perc=["palmas", "congas"], perc_level=0.85, fill=True,
+               melody=[mel("B", "flute", 0.26), mel("B", "guitar", 0.32, octave=0, pan=0.3, legato=0.8)]),
+             S("rasgueado_break", 8, bpm=122, prog="refrain", dyn=0.9, drums="kickonly", drum_level=1.0, hats="offbeat", bass="house", bass_level=0.94, bass_cut=700.0, bass_drive=2.2, acid=0.24, acid_cut=440.0,
+               comping="rumba", comp_level=0.24, perc=["palmas", "castanets"], perc_level=1.0, pad=700, pad_level=0.4, fill=True),
+             S("deep2", 16, bpm=122, dyn=0.84, drums="deep", drum_level=0.9, hats="eighths", hats_alt="offbeat", bass="house", bass_level=0.9, bass_cut=580.0, acid=0.16, acid_cut=340.0,
+               comping="strum", comp_level=0.14, pad=800, pad_level=0.45, perc=["shaker", "congas"], perc_level=0.75,
+               melody=[mel("A", "guitar_trem", 0.4, bars=8), mel("A", "flute", 0.24, offset=8, bars=8)], answer="steel", answer_level=0.1),
+             S("chorus2", 16, bpm=122, prog="refrain", dyn=0.96, drums="house", drum_level=0.96, hats="full", hats_alt="techno16", bass="house", bass_level=0.94, bass_cut=740.0, acid=0.24, acid_cut=420.0,
+               comping="rumba", comp_level=0.14, pad=1250, pad_level=0.5, stabs="dub", stab_steps=(2, 10), stab_level=0.11, perc=["palmas", "congas"], perc_level=0.85, fill=True,
+               melody=[mel("B", "flute", 0.26), mel("B", "guitar", 0.32, octave=0, pan=0.3, legato=0.8), mel("A", "steel", 0.12, octave=24, pan=0.5, offset=8, bars=8, legato=0.6)]),
+             S("breakdown", 8, bpm=122, prog="bridge", dyn=0.7, bass="one", bass_level=0.6, bass_cut=420.0, pad=750, pad_level=0.6, acid=0.12, acid_cut=280.0, fx=["riser", "roll"],
+               melody=[mel("frag", "guitar_trem", 0.38, legato=1.3, humanize=0.02)], atmos=dict(cicadas=0.5, crickets=0.3)),
+             S("chorus3", 16, bpm=122, prog="climax", dyn=1.0, drums="house", drum_level=1.0, hats="techno16", hats_alt="full", ride=True, bass="house", bass_level=0.96, bass_cut=820.0, bass_drive=2.2, acid=0.3, acid_cut=520.0,
+               comping="rumba", comp_level=0.15, pad=1400, pad_level=0.5, stabs="dub", stab_steps=(2, 7, 10, 15), stab_level=0.12, perc=["palmas", "congas", "shaker"], perc_level=0.9,
                fx=["crash"], fill=True,
-               melody=[mel("B", "trumpet", 0.28), mel("B", "guitar", 0.27, octave=0, pan=0.3, legato=0.8), mel("A", "steel", 0.13, octave=24, pan=0.5, offset=8, bars=8, legato=0.6)]),
-             S("outro1", 8, bpm=122, dyn=0.76, drums="deep", drum_level=0.8, hats="offbeat", bass="house", bass_level=0.8, bass_cut=520.0, acid=0.14, acid_cut=300.0, pad=850, pad_level=0.55,
-               perc=["shaker"], melody=[mel("frag", "mtrumpet", 0.22, legato=1.3)]),
-             S("outro2", 8, bpm=122, dyn=0.6, pad=700, pad_level=0.6, melody=[mel("frag", "mtrumpet", 0.22, legato=1.4, humanize=0.02)], atmos=dict(crickets=0.4)),
+               melody=[mel("B", "flute", 0.26), mel("B", "guitar", 0.32, octave=0, pan=0.3, legato=0.8), mel("B", "trumpet", 0.16, offset=8, bars=8, pan=-0.2), mel("A", "steel", 0.12, octave=24, pan=0.5, offset=8, bars=8, legato=0.6)]),
+             S("outro1", 8, bpm=122, dyn=0.76, drums="deep", drum_level=0.8, hats="offbeat", bass="house", bass_level=0.82, bass_cut=520.0, acid=0.12, acid_cut=300.0, pad=800, pad_level=0.45,
+               perc=["shaker"], melody=[mel("A", "guitar", 0.4, ornaments=True)]),
+             S("outro2", 8, bpm=122, dyn=0.6, pad=650, pad_level=0.5, melody=[mel("frag", "guitar_trem", 0.36, legato=1.4, humanize=0.02)], atmos=dict(crickets=0.4)),
              S("end", 2, bpm=122, dyn=0.55, fx=["final_chord"]),
          ]),
 

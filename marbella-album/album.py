@@ -745,7 +745,7 @@ TRACKS = [
          ]),
 
     dict(nr=2, title="La Concha Horizon", seed=2202, root=55, mode="G-Moll, andalusische Kadenz", style="Deep House, Flamenco-Gitarre",
-         scale=[0, 2, 3, 5, 7, 8, 10], themes=T_CONCHA, kick_punch=1.2, duck=0.6, bass_boost=1.3, stab_delay=3.0, stab_fb=0.5,
+         scale=[0, 2, 3, 5, 7, 8, 10], themes=T_CONCHA, kick_punch=1.2, duck=0.6, bass_boost=0.62, stab_delay=3.0, stab_fb=0.5,
          progs=dict(verse=["i", "VII", "VI", "V"], refrain=["VI", "VII", "i", "V7"], bridge=["iv7", "V", "iv7", "V"], climax=["VI7", "VII", "i9", "V7"]),
          sections=[
              S("intro", 8, bpm=122, dyn=0.64, comping="trem", comp_level=0.14, perc=["cajon"], perc_level=0.5,

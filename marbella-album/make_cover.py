@@ -260,10 +260,14 @@ def center_text(d, img_w, y, s, fnt, fill, spacing=0):
 def track_data():
     rows = []
     total = 0.0
-    for i, spec in enumerate(al.TRACKS, 1):
+    n = 0
+    for spec in al.TRACKS:
         dur = al.track_duration(spec)
         total += dur
-        rows.append(dict(nr=i, title=spec["title"], bpm=spec["style"], key=spec["mode"], dur=dur, interlude=spec.get("interlude", False)))
+        inter = spec.get("interlude", False)
+        if not inter:
+            n += 1
+        rows.append(dict(nr=n, title=spec["title"], bpm=spec["style"], key=spec["mode"], dur=dur, interlude=inter))
     return rows, total
 
 
@@ -316,7 +320,7 @@ def make_front(S=3000):
 # --------------------------------------------------------------------------- #
 def draw_tracklist(d, x0, x1, y, rows, total, fnt_nr, fnt_t, fnt_m, line_h, fill=(240, 236, 245), dim=(170, 160, 190)):
     for r in rows:
-        d.text((x0, y), f"{r['nr']:02d}", font=fnt_nr, fill=dim)
+        d.text((x0, y), "–" if r.get("interlude") else f"{r['nr']:02d}", font=fnt_nr, fill=dim)
         tx = x0 + int(line_h * 1.6)
         d.text((tx, y), r["title"], font=fnt_t, fill=fill)
         dur = fmt(r["dur"])
@@ -332,7 +336,7 @@ def draw_tracklist(d, x0, x1, y, rows, total, fnt_nr, fnt_t, fnt_m, line_h, fill
             d.ellipse((xx, yy, xx + max(2, line_h * 0.05), yy + max(2, line_h * 0.05)), fill=dim)
             xx += int(line_h * 0.22)
         d.text((tx, y + int(line_h * 1.12)), f"{r['bpm']}  ·  {r['key']}", font=fnt_m, fill=dim)
-        y += int(line_h * 1.95)
+        y += int(line_h * (1.6 if r.get("interlude") else 1.9))
     y += int(line_h * 0.2)
     d.line((x0, y, x1, y), fill=dim, width=max(1, int(line_h * 0.03)))
     y += int(line_h * 0.35)
@@ -378,8 +382,8 @@ def make_back(S=3000):
     d.line((m, int(S * 0.215), S - m, int(S * 0.215)), fill=(150, 130, 180), width=3)
 
     rows, total = track_data()
-    lh = int(S * 0.027)
-    y = draw_tracklist(d, m, S - m, int(S * 0.245), rows, total,
+    lh = int(S * 0.0245)
+    y = draw_tracklist(d, m, S - m, int(S * 0.235), rows, total,
                        font(F_SANS, lh * 0.75), font(F_SANS, lh * 0.95), font(F_SANS, lh * 0.5), lh)
 
     fnt = font(F_SANS, S * 0.0135)
@@ -427,8 +431,8 @@ def make_inlay(dpi=300):
     center_text(d, W, int(15.5 * mm), f"{TITLE_A} {TITLE_B} {YEAR}".upper(), font(F_SANS_B, 3.4 * mm), (255, 240, 225), spacing=int(0.6 * mm))
     d.line((x0, int(20.5 * mm), x1, int(20.5 * mm)), fill=(150, 130, 180), width=2)
     rows, total = track_data()
-    lh = int(3.2 * mm)
-    y = draw_tracklist(d, x0, x1, int(22.5 * mm), rows, total,
+    lh = int(2.9 * mm)
+    y = draw_tracklist(d, x0, x1, int(22.0 * mm), rows, total,
                        font(F_SANS, lh * 0.7), font(F_SANS, lh * 0.85), font(F_SANS, lh * 0.48), lh)
     fnt = font(F_SANS, 1.5 * mm)
     y = max(y, int(93 * mm))

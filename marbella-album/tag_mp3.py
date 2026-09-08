@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Schreibt ID3v2.3-Tags (Titel, Interpret, Album, Tracknummer, Jahr, Cover) in die
-MP3-Dateien in ./out und packt Album plus Cover als ZIP.
+MP3-Dateien in ./out.
 
     python3 tag_mp3.py
 """
@@ -9,7 +9,6 @@ import json
 import os
 import struct
 import sys
-import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
@@ -50,7 +49,8 @@ def main():
         tl = json.load(fh)
     cover = open(COVER, "rb").read() if os.path.exists(COVER) else None
     total = len(tl["tracks"])
-    for tr in tl["tracks"]:
+    for i, tr in enumerate(tl["tracks"], 1):
+        tr["nr"] = i
         path = os.path.join(OUT, tr["file"])
         if not os.path.exists(path):
             print("fehlt:", path, file=sys.stderr)
@@ -60,15 +60,7 @@ def main():
         with open(path, "wb") as fh:
             fh.write(tag + audio)
         print("getaggt:", tr["file"])
-    zpath = os.path.join(HERE, "Sounds-of-Marbella-2026.zip")
-    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_STORED) as z:
-        for tr in tl["tracks"]:
-            z.write(os.path.join(OUT, tr["file"]), f"Sounds of Marbella 2026/{tr['file']}")
-        for name in ("front.png", "back.png", "cover.pdf"):
-            p = os.path.join(HERE, "cover", name)
-            if os.path.exists(p):
-                z.write(p, f"Sounds of Marbella 2026/cover/{name}")
-    print("ZIP:", zpath)
+    print("fertig")
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ import lameenc
 import miniaudio
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PER_PAGE = 4
+PER_PAGE = 5
 BITRATE = 96
 
 
@@ -160,10 +160,10 @@ def main():
         items = []
         for tr in group:
             data, dur = reencode(os.path.join(HERE, "out", tr["file"]))
-            items.append(dict(nr=tr["nr"], title=html.escape(tr["title"]), meta=f"{tr['bpm']} BPM · {html.escape(tr['key'])}",
+            items.append(dict(nr=tracks.index(tr) + 1, title=html.escape(tr["title"]), meta=f"{html.escape(tr['style'])} · {html.escape(tr['key'])}",
                               dur=round(dur, 1), src="data:audio/mpeg;base64," + base64.b64encode(data).decode()))
             print(f"  {tr['file']}: {len(data)//1024} KB @ {BITRATE} kbit/s", flush=True)
-        first, last = group[0]["nr"], group[-1]["nr"]
+        first, last = items[0]["nr"], items[-1]["nr"]
         total = sum(it["dur"] for it in items)
         page = PAGE.format(
             title=f"Sounds of Marbella 2026 · Titel {first}–{last}",

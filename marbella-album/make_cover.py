@@ -20,13 +20,13 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import compose_song as cs  # noqa: E402
+import album as al  # noqa: E402
 
 ARTIST = "DJ Jensi"
 TITLE_A = "Sounds of"
 TITLE_B = "Marbella"
 YEAR = "2026"
-TAGLINE = "Balearic House  ·  Spanish Guitar  ·  Acid  ·  Trumpet"
+TAGLINE = "Una noche de verano  ·  Flamenco Chill  ·  Deep House  ·  Trance"
 
 IMPRESSUM = {
     "Künstler": "DJ Jensi",
@@ -260,10 +260,10 @@ def center_text(d, img_w, y, s, fnt, fill, spacing=0):
 def track_data():
     rows = []
     total = 0.0
-    for spec in cs.SONGS:
-        dur = cs.song_duration(spec)
+    for i, spec in enumerate(al.TRACKS, 1):
+        dur = al.track_duration(spec)
         total += dur
-        rows.append(dict(nr=spec["nr"], title=spec["title"], bpm=spec["bpm"], key=spec["mode"], dur=dur))
+        rows.append(dict(nr=i, title=spec["title"], bpm=spec["style"], key=spec["mode"], dur=dur, interlude=spec.get("interlude", False)))
     return rows, total
 
 
@@ -331,7 +331,7 @@ def draw_tracklist(d, x0, x1, y, rows, total, fnt_nr, fnt_t, fnt_m, line_h, fill
         while xx < dots_x1:
             d.ellipse((xx, yy, xx + max(2, line_h * 0.05), yy + max(2, line_h * 0.05)), fill=dim)
             xx += int(line_h * 0.22)
-        d.text((tx, y + int(line_h * 1.12)), f"{r['bpm']} BPM  ·  {r['key']}", font=fnt_m, fill=dim)
+        d.text((tx, y + int(line_h * 1.12)), f"{r['bpm']}  ·  {r['key']}", font=fnt_m, fill=dim)
         y += int(line_h * 1.95)
     y += int(line_h * 0.2)
     d.line((x0, y, x1, y), fill=dim, width=max(1, int(line_h * 0.03)))

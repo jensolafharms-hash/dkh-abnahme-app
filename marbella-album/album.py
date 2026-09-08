@@ -222,6 +222,7 @@ class Track:
         self.kick_times = []
         self.sec_start = [sum(s["bars"] for s in self.sections[:i]) for i in range(len(self.sections))]
         self.events = []  # (track, note, start_sample, dur_samples, velocity 0..1)
+        self.pre_mix = None  # optionaler Hook vor der Mischung (z. B. SoundFont-Ersatz)
 
     def ev(self, track, note, start, dur, vel):
         if start < 0 or start >= self.n:
@@ -652,6 +653,8 @@ class Track:
                 if "stop_note" in fx and b == 0:
                     place(self.layers["flute"], bar_s, flute(rng, root + 19, int(bar["len"] * SR * 1.8), level=0.28, pan=0.0))
                     self.ev("Flute", root + 19, bar_s, int(bar["len"] * SR * 1.8), 0.8)
+        if self.pre_mix:
+            self.pre_mix(self)
         return self.mix()
 
     def mix(self):
@@ -1145,6 +1148,7 @@ def main():
     ap.add_argument("--wav", action="store_true")
     ap.add_argument("--export", action="store_true", help="MIDI und Stems nach out/midi und out/stems schreiben")
     ap.add_argument("--stems-wav", action="store_true", help="Stems als WAV (32 Bit float) statt MP3 320 kbit/s")
+    ap.add_argument("--sf", action="store_true", help="akustische Stimmen mit SoundFont-Aufnahmen (FluidSynth) statt Synthese spielen")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     tracklist = []
@@ -1153,6 +1157,15 @@ def main():
             continue
         tr = Track(spec)
         print(f"[{spec['nr']}] {spec['title']}  ({spec['style']}, {spec['mode']}) ...", flush=True)
+        if args.sf:
+            import sf_render
+
+            def _hook(t, _out=args.out):
+                os.makedirs(os.path.join(_out, "midi"), exist_ok=True)
+                mp = os.path.join(_out, "midi", slug_of(t.spec) + ".mid")
+                write_midi(t, mp)
+                sf_render.replace_layers(t, mp)
+            tr.pre_mix = _hook
         mixv = tr.render()
         slug = slug_of(spec)
         ga.write_outputs(mixv, os.path.join(args.out, slug), args.wav, True)

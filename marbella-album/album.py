@@ -593,12 +593,12 @@ class Track:
                 duck[kt:end] = np.minimum(duck[kt:end], curve[: end - kt])
         d = np.clip(lowpass(duck, 60.0), 0.35, 1.0)[:, None]
 
-        pad = reverb(chorus_widen(L["pad"], rng), ir_long, 0.55) * d
+        pad = reverb(chorus_widen(L["pad"], rng), ir_long, 0.75) * d   # weit hinten
         if hasattr(self, "wave_env") and P_all.get("pad_breathes", False):
             pad *= (0.6 + 0.4 * self.wave_env)[:, None]
         choir = reverb(chorus_widen(L["choir"], rng, 6.0, 0.18), ir_huge, 0.7)
         lead_l = reverb(delay(L["lead"], self.beat_len(0) * 1.5, 0.42, 6, 2600.0, True, 0.3), ir_long, 0.42)
-        guitar = reverb(delay(L["guitar"], self.beat_len(0) * 0.75, 0.28, 3, 3200.0, False, 0.16), ir_room, 0.3)
+        guitar = reverb(delay(L["guitar"], self.beat_len(0) * 0.75, 0.22, 2, 3200.0, False, 0.1), ir_room, 0.22)  # vorn, trocken
         brass = reverb(delay(L["brass"], self.beat_len(0) * (1.5 if dub else 0.75), 0.55 if dub else 0.3, 7 if dub else 3, 2400.0, True, 0.45 if dub else 0.2),
                        ir_huge if dub else ir_long, 0.45 if dub else 0.38)
         flute_l = reverb(delay(L["flute"], self.beat_len(0) * 1.5, 0.35, 4, 3000.0, True, 0.22), ir_long, 0.42)
@@ -612,9 +612,10 @@ class Track:
         stab = reverb(delay(L["stab"], self.beat_len(0) * P_all.get("stab_delay", 1.5), P_all.get("stab_fb", 0.35), 6 if P_all.get("stab_fb", 0.35) > 0.4 else 4, 2600.0, True, 0.3), ir_long, 0.3) * d
         atmos = L["atmos"]
 
-        parts = dict(drums=drums * 1.0, perc=perc * 1.15, bass=bass * 1.0, pad=pad * 1.7, lead=lead_l * 1.4,
-                     guitar=guitar * 1.8, brass=brass * 1.4, flute=flute_l * 1.5, steel=steel * 1.3, atmos=atmos * 1.8,
-                     acid=acid * 1.5, stab=stab * 2.2, trance=trance * 1.5, choir=choir * 1.6, bell=bell_l * 1.3)
+        # Akustische Stimmen vorn, Synthesizer-Flächen hinten
+        parts = dict(drums=drums * 1.0, perc=perc * 1.25, bass=bass * 1.0, pad=pad * 1.0, lead=lead_l * 1.05,
+                     guitar=guitar * 2.4, brass=brass * 1.65, flute=flute_l * 1.75, steel=steel * 1.5, atmos=atmos * 1.8,
+                     acid=acid * 1.3, stab=stab * 1.5, trance=trance * 1.1, choir=choir * 1.05, bell=bell_l * 1.3)
         if os.environ.get("ALBUM_DEBUG"):
             for k, v in parts.items():
                 r = np.sqrt(np.mean(v ** 2)) + 1e-9

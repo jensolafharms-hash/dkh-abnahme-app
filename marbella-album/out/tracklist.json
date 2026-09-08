@@ -7,24 +7,24 @@
     {
       "nr": 1,
       "title": "Playa de Nagüeles, 9 p.m.",
-      "style": "Chill, Halftime",
+      "style": "House, Acid, Chill",
       "key": "D dorisch",
       "seed": 8808,
       "interlude": false,
-      "duration_s": 245.2,
+      "duration_s": 241.9,
       "file": "01-playa-de-nagueles-9-p-m.mp3",
-      "rendered": true
+      "midi": "midi/01-playa-de-nagueles-9-p-m.mid"
     },
     {
       "nr": 2,
       "title": "La Concha Horizon",
-      "style": "Deep House",
+      "style": "Deep House, Flamenco-Gitarre",
       "key": "G-Moll, andalusische Kadenz",
       "seed": 2202,
       "interlude": false,
-      "duration_s": 282.0,
+      "duration_s": 265.7,
       "file": "02-la-concha-horizon.mp3",
-      "rendered": true
+      "midi": "midi/02-la-concha-horizon.mid"
     },
     {
       "nr": 3,
@@ -35,7 +35,7 @@
       "interlude": false,
       "duration_s": 254.8,
       "file": "03-golden-mile-breeze.mp3",
-      "rendered": true
+      "midi": "midi/03-golden-mile-breeze.mid"
     },
     {
       "nr": 3.5,
@@ -46,7 +46,7 @@
       "interlude": true,
       "duration_s": 70.0,
       "file": "03b-paseo.mp3",
-      "rendered": true
+      "midi": "midi/03b-paseo.mid"
     },
     {
       "nr": 4,
@@ -57,7 +57,7 @@
       "interlude": false,
       "duration_s": 245.9,
       "file": "04-cabopino-drum-circle.mp3",
-      "rendered": true
+      "midi": "midi/04-cabopino-drum-circle.mid"
     },
     {
       "nr": 5,
@@ -68,7 +68,7 @@
       "interlude": false,
       "duration_s": 253.9,
       "file": "05-puerto-banus-nights.mp3",
-      "rendered": true
+      "midi": "midi/05-puerto-banus-nights.mid"
     },
     {
       "nr": 6,
@@ -79,7 +79,7 @@
       "interlude": false,
       "duration_s": 241.1,
       "file": "06-sierra-blanca-drift.mp3",
-      "rendered": true
+      "midi": "midi/06-sierra-blanca-drift.mid"
     },
     {
       "nr": 7,
@@ -90,7 +90,7 @@
       "interlude": false,
       "duration_s": 270.3,
       "file": "07-casco-antiguo-echoes.mp3",
-      "rendered": true
+      "midi": "midi/07-casco-antiguo-echoes.mid"
     },
     {
       "nr": 7.5,
@@ -101,7 +101,7 @@
       "interlude": true,
       "duration_s": 61.0,
       "file": "07b-farola.mp3",
-      "rendered": true
+      "midi": "midi/07b-farola.mid"
     },
     {
       "nr": 8,
@@ -112,7 +112,7 @@
       "interlude": false,
       "duration_s": 258.4,
       "file": "08-la-fontanilla-sunrise.mp3",
-      "rendered": true
+      "midi": "midi/08-la-fontanilla-sunrise.mid"
     }
   ]
 }

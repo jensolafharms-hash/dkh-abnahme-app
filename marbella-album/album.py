@@ -161,7 +161,8 @@ HATS = {
     "techno16": [(s, "hat", 0.9 if s % 4 == 2 else (0.55 if s % 2 == 0 else 0.35)) for s in range(16)] + [(s, "ohat", 0.7) for s in (2, 6, 10, 14)],
 }
 BASS_STEPS = {"roll": [0, 2, 4, 6, 8, 10, 12, 14], "deep": [0, 3, 6, 8, 11, 14], "long": [0, 8], "half": [0, 10],
-              "six8": [0, 6, 10], "bul": [0, 6, 12, 16, 20], "one": [0]}
+              "six8": [0, 6, 10], "bul": [0, 6, 12, 16, 20], "one": [0], "house": [0, 2, 4, 6, 8, 10, 12, 14]}
+BASS_INTERVALS = {"house": [0, 12, 0, 7, 0, 12, 0, 10]}   # melodische Bassline: Oktave, Quinte, Septime
 BUL_ACCENTS = [0, 6, 12, 16, 20]          # Zählzeiten 12, 3, 6, 8, 10 als 8tel-Schritte
 BUL_CONTRA = [3, 9, 15, 19, 23]
 
@@ -427,12 +428,16 @@ class Track:
                     for i, st in enumerate(stepsb):
                         nxt = stepsb[i + 1] if i + 1 < len(stepsb) else steps
                         m_ = bass_root + (12 if bass in ("roll", "deep") and st in (6, 14) and rng.random() < 0.5 else 0)
+                        if bass in BASS_INTERVALS:
+                            m_ = bass_root + BASS_INTERVALS[bass][i % len(BASS_INTERVALS[bass])]
+                            if b % 4 == 3 and st == 14:
+                                m_ = bass_root + 10 if rng.random() < 0.5 else bass_root + 5
                         if P.get("bass_inst", "synth") == "pluck":
                             place(self.layers["bass"], at(st), pluck_bass(rng, m_, int(self.step_len(cur, nxt - st) * 0.9), level=blvl))
                         else:
                             place(self.layers["bass"], at(st),
-                                  synth_bass(rng, float(midi_to_hz(m_)), int(self.step_len(cur, nxt - st) * (0.65 if bass in ("roll", "deep") else 0.92)),
-                                             level=blvl * (1.0 if st in (0, 8, 12) else 0.85), cutoff=P.get("bass_cut", 600.0)))
+                                  synth_bass(rng, float(midi_to_hz(m_)), int(self.step_len(cur, nxt - st) * (0.65 if bass in ("roll", "deep", "house") else 0.92)),
+                                             level=blvl * (1.0 if st in (0, 8, 12) else 0.85), cutoff=P.get("bass_cut", 600.0), drive=P.get("bass_drive", 1.8)))
 
                 # Drums
                 groove = P.get("drums")
@@ -606,7 +611,7 @@ class Track:
         bell_l = reverb(delay(L["bell"], self.beat_len(0) * 1.5, 0.4, 5, 3000.0, True, 0.3), ir_huge, 0.6)
         perc = reverb(L["perc"], ir_room, 0.16)
         drums = reverb(L["drums"], ir_room, 0.06)
-        bass = L["bass"] * (0.6 + 0.4 * d)
+        bass = L["bass"] * (0.6 + 0.4 * d) * P_all.get("bass_boost", 1.0)
         acid = reverb(delay(L["acid"], self.beat_len(0) * 0.75, 0.3, 3, 2400.0, True, 0.18), ir_room, 0.16) * (0.7 + 0.3 * d)
         trance = reverb(delay(L["trance"], self.beat_len(0) * 0.75, 0.4, 5, 3200.0, True, 0.3), ir_long, 0.5) * d
         stab = reverb(delay(L["stab"], self.beat_len(0) * P_all.get("stab_delay", 1.5), P_all.get("stab_fb", 0.35), 6 if P_all.get("stab_fb", 0.35) > 0.4 else 4, 2600.0, True, 0.3), ir_long, 0.3) * d
@@ -694,34 +699,34 @@ T_FAROLA = dict(motif=[[(0, 7, 6), (8, 12, 8), (16, 10, 6), (24, 7, 8)]])
 # Die Partitur: Abend, Nacht, Morgen
 # --------------------------------------------------------------------------- #
 TRACKS = [
-    dict(nr=1, title="Playa de Nagüeles, 9 p.m.", seed=8808, root=50, mode="D dorisch", style="Deep House, Chill",
-         scale=[0, 2, 3, 5, 7, 9, 10], themes=T_PLAYA, pad_breathes=True, kick_punch=1.2, duck=0.62, stab_delay=3.0, stab_fb=0.5,
+    dict(nr=1, title="Playa de Nagüeles, 9 p.m.", seed=8808, root=50, mode="D dorisch", style="House, Acid, Chill",
+         scale=[0, 2, 3, 5, 7, 9, 10], themes=T_PLAYA, pad_breathes=True, kick_punch=1.25, duck=0.62, stab_delay=3.0, stab_fb=0.5, bass_boost=1.25,
          progs=dict(verse=["i7", "IV", "i7", "IV"], refrain=["bVII", "IV", "i7", "ii7"], quiet=["ii7", "bVII", "ii7", "IV"]),
          sections=[
-             S("intro", 8, bpm=110, dyn=0.6, melody=[mel("A", "guitar", 0.4, ornaments=True, humanize=0.02, legato=1.1)], atmos=dict(waves=1.0, crickets=0.3)),
-             S("arrival", 8, bpm=110, dyn=0.7, drums="soft", drum_level=0.75, perc=["cajon", "shaker"], perc_level=0.8, bass="long", bass_inst="pluck", bass_level=0.72,
-               comping="pick", comp_level=0.15, pad=600, pad_level=0.6, choir="oo", choir_from=4, choir_level=0.08, choir_every=2, atmos=dict(waves=0.5)),
-             S("groove1", 16, bpm=110, dyn=0.8, drums="deep", drum_level=0.85, hats="offbeat", bass="deep", bass_level=0.78, bass_cut=540.0,
-               comping="strum", comp_level=0.16, pad=750, pad_level=0.7, perc=["shaker", "congas", "rimloop"], perc_level=0.8,
-               melody=[mel("A", "flute", 0.23)], answer="steel", answer_level=0.1, atmos=dict(waves=0.3)),
-             S("lift1", 16, bpm=110, prog="refrain", dyn=0.9, drums="house", drum_level=0.9, hats="full", bass="roll", bass_level=0.8, bass_cut=620.0,
-               comping="strum", comp_level=0.17, pad=950, pad_level=0.7, choir="ah", choir_level=0.11, perc=["shaker", "congas"], stabs="dub", stab_steps=(2, 10), stab_level=0.12, fill=True,
-               melody=[mel("B", "flute", 0.25), mel("B", "guitar", 0.3, octave=0, pan=0.3, legato=0.8)], atmos=dict(waves=0.2)),
-             S("groove2", 16, bpm=110, dyn=0.86, drums="deep", drum_level=0.9, hats="techno16", bass="roll", bass_level=0.8, bass_cut=600.0, acid=0.14, acid_cut=300.0,
-               comping="pick", comp_level=0.15, pad=800, pad_level=0.6, perc=["shaker", "congas", "rimloop"], perc_level=0.85, fill=True,
+             S("intro", 8, bpm=118, dyn=0.6, melody=[mel("A", "guitar", 0.4, ornaments=True, humanize=0.02, legato=1.1)], atmos=dict(waves=1.0, crickets=0.3)),
+             S("arrival", 8, bpm=118, dyn=0.72, drums="kickonly", drum_level=0.8, hats="offbeat", perc=["cajon", "shaker"], perc_level=0.8, bass="house", bass_level=0.85, bass_cut=560.0,
+               comping="pick", comp_level=0.15, pad=600, pad_level=0.6, atmos=dict(waves=0.5)),
+             S("groove1", 16, bpm=118, dyn=0.82, drums="house", drum_level=0.88, hats="full", bass="house", bass_level=0.9, bass_cut=620.0, acid=0.16, acid_cut=320.0,
+               comping="strum", comp_level=0.16, pad=750, pad_level=0.6, perc=["shaker", "congas", "rimloop"], perc_level=0.8, fill=True,
+               melody=[mel("A", "flute", 0.23)], answer="steel", answer_level=0.1, atmos=dict(waves=0.25)),
+             S("lift1", 16, bpm=118, prog="refrain", dyn=0.92, drums="house", drum_level=0.95, hats="full", bass="house", bass_level=0.92, bass_cut=700.0, acid=0.22, acid_cut=380.0,
+               comping="strum", comp_level=0.17, pad=950, pad_level=0.6, choir="ah", choir_level=0.1, perc=["shaker", "congas", "palmas"], stabs="dub", stab_steps=(2, 10), stab_level=0.12, fill=True,
+               melody=[mel("B", "flute", 0.25), mel("B", "guitar", 0.3, octave=0, pan=0.3, legato=0.8)], atmos=dict(waves=0.15)),
+             S("groove2", 16, bpm=118, dyn=0.88, drums="house", drum_level=0.92, hats="techno16", bass="house", bass_level=0.9, bass_cut=660.0, acid=0.24, acid_cut=420.0,
+               comping="pick", comp_level=0.15, pad=800, pad_level=0.55, perc=["shaker", "congas", "rimloop"], perc_level=0.85, fill=True,
                melody=[mel("A", "guitar", 0.4, ornaments=True)], answer="flute", answer_level=0.11),
-             S("breath", 8, bpm=110, prog="quiet", dyn=0.66, pad=600, pad_level=0.7, choir="ah", choir_level=0.15, bass="one", bass_level=0.5, bass_cut=380.0,
+             S("breath", 8, bpm=118, prog="quiet", dyn=0.68, pad=600, pad_level=0.7, choir="ah", choir_level=0.14, bass="one", bass_level=0.55, bass_cut=380.0, acid=0.14, acid_cut=260.0,
                melody=[mel("frag", "guitar", 0.35, humanize=0.02, legato=1.2)], fx=["riser", "roll"], atmos=dict(waves=0.7, crickets=0.4)),
-             S("peak", 24, bpm=110, prog="refrain", dyn=1.0, drums="house", drum_level=1.0, hats="techno16", bass="roll", bass_level=0.86, bass_cut=720.0, acid=0.18, acid_cut=380.0,
-               comping="strum", comp_level=0.17, pad=1100, pad_level=0.7, choir="ah", choir_level=0.13, stabs="dub", stab_steps=(2, 7, 10, 15), stab_level=0.14,
-               perc=["shaker", "congas", "palmas", "rimloop"], perc_level=0.85, fx=["crash"], fill=True,
+             S("peak", 24, bpm=118, prog="refrain", dyn=1.0, drums="house", drum_level=1.0, hats="techno16", bass="house", bass_level=0.95, bass_cut=800.0, bass_drive=2.2, acid=0.3, acid_cut=520.0,
+               comping="strum", comp_level=0.17, pad=1100, pad_level=0.6, choir="ah", choir_level=0.12, stabs="dub", stab_steps=(2, 7, 10, 15), stab_level=0.14,
+               perc=["shaker", "congas", "palmas", "rimloop"], perc_level=0.9, fx=["crash"], fill=True,
                melody=[mel("B", "flute", 0.26), mel("B", "guitar", 0.3, octave=0, pan=0.3, legato=0.8), mel("A", "steel", 0.13, octave=24, pan=0.5, offset=8, bars=16, legato=0.6)],
-               atmos=dict(waves=0.15)),
-             S("release", 8, bpm=110, dyn=0.74, drums="deep", drum_level=0.75, hats="offbeat", bass="deep", bass_level=0.7, bass_cut=500.0, pad=700, pad_level=0.6, choir="oo", choir_level=0.1,
-               comping="pick", comp_level=0.14, perc=["shaker", "congas"], perc_level=0.6, melody=[mel("A", "guitar", 0.38, ornaments=True)], atmos=dict(waves=0.5)),
-             S("outro", 8, bpm=110, dyn=0.6, pad=600, pad_level=0.6, choir="oo", choir_level=0.1, melody=[mel("A", "guitar", 0.4, humanize=0.02, legato=1.25)],
+               atmos=dict(waves=0.1)),
+             S("release", 8, bpm=118, dyn=0.78, drums="house", drum_level=0.8, hats="offbeat", bass="house", bass_level=0.8, bass_cut=560.0, acid=0.16, acid_cut=320.0, pad=700, pad_level=0.55,
+               choir="oo", choir_level=0.1, comping="pick", comp_level=0.14, perc=["shaker", "congas"], perc_level=0.6, melody=[mel("A", "guitar", 0.38, ornaments=True)], atmos=dict(waves=0.4)),
+             S("outro", 8, bpm=118, dyn=0.6, pad=600, pad_level=0.6, choir="oo", choir_level=0.1, melody=[mel("A", "guitar", 0.4, humanize=0.02, legato=1.25)],
                atmos=dict(waves=1.0, crickets=0.4)),
-             S("end", 2, bpm=110, dyn=0.55, fx=["final_chord"], atmos=dict(waves=1.0)),
+             S("end", 2, bpm=118, dyn=0.55, fx=["final_chord"], atmos=dict(waves=1.0)),
          ]),
 
     dict(nr=2, title="La Concha Horizon", seed=2202, root=55, mode="G-Moll, andalusische Kadenz", style="Deep House",

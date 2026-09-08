@@ -129,6 +129,20 @@ def crickets(rng, n, level=0.04, count=3):
 
 
 # --------------------------------------------------------------------------- #
+# MIDI-Zuordnung
+# --------------------------------------------------------------------------- #
+GM = dict(kick=36, snare=38, clap=39, rim=37, hat=42, ohat=46, ride=51, crash=49, tom_l=45, tom_m=47, tom_h=50,
+          cjb=36, cjs=38, secas=39, sordas=40, cast=85, conga0=63, conga1=62, conga2=64, shaker=82)
+MIDI_TRACK = {"guitar": "Guitar", "guitar_trem": "Guitar", "flute": "Flute", "trumpet": "Trumpet", "mtrumpet": "Trumpet (muted)",
+              "steel": "Steel Drum", "lead": "Lead", "hook": "Supersaw", "bell": "Bell", "choir": "Choir Lead"}
+MEL_REF = {"guitar": 0.42, "guitar_trem": 0.42, "flute": 0.26, "trumpet": 0.26, "mtrumpet": 0.26, "steel": 0.16, "lead": 0.25,
+           "hook": 0.2, "bell": 0.22, "choir": 0.18}
+PROGRAM = {"Guitar": 24, "Guitar Comp": 24, "Flute": 73, "Trumpet": 56, "Trumpet (muted)": 59, "Steel Drum": 114, "Lead": 81,
+           "Supersaw": 90, "Bell": 14, "Choir Lead": 52, "Choir": 52, "Pad": 89, "Bass": 33, "Sub": 38, "Acid": 38,
+           "Chords": 4, "Brass Stabs": 61, "Arp": 81}
+
+
+# --------------------------------------------------------------------------- #
 # Takt- und Groove-Bibliothek
 # --------------------------------------------------------------------------- #
 METERS = {"4/4": dict(steps=16, beats=4), "6/8": dict(steps=12, beats=2), "bul": dict(steps=24, beats=12)}
@@ -207,6 +221,12 @@ class Track:
                         "flute", "steel", "brass", "choir", "bell")}
         self.kick_times = []
         self.sec_start = [sum(s["bars"] for s in self.sections[:i]) for i in range(len(self.sections))]
+        self.events = []  # (track, note, start_sample, dur_samples, velocity 0..1)
+
+    def ev(self, track, note, start, dur, vel):
+        if start < 0 or start >= self.n:
+            return
+        self.events.append((track, int(note), int(start), max(int(dur), 1), float(min(1.0, max(0.05, vel)))))
 
     # ---- Zeit -----------------------------------------------------------------
     def s(self, bar, step=0.0):
@@ -247,6 +267,11 @@ class Track:
             return "choir", choir_chord(rng, [midi], hold, level=vel * 2.2, vowel="ah", attack=0.25, release=0.8)
         raise ValueError(inst)
 
+    def hit(self, pos, name, level):
+        """Percussion-Schlag: Audio in die Perc-Spur, Event in die MIDI-Liste."""
+        place(self.layers["perc"], pos, self._snd[name] * level)
+        self.ev("Percussion", GM[name], pos, int(0.05 * SR), level)
+
     def scale_run(self, target, root, steps=3):
         pcs = sorted(self.scale)
         rel = (target - root) % 12
@@ -283,8 +308,10 @@ class Track:
                     for k, rm in enumerate(self.scale_run(midi, root)):
                         layer, sig = self.note("guitar", rm, self.step_len(bar, 0.9), vel * 0.5, m["pan"])
                         place(self.layers[layer], self.s(bar, step) + off - self.step_len(bar, 3 - k), sig)
+                        self.ev("Guitar", rm, self.s(bar, step) + off - self.step_len(bar, 3 - k), self.step_len(bar, 0.9), vel * 0.5 / 0.42)
                 layer, sig = self.note(inst, midi, hold, vel, m["pan"])
                 place(self.layers[layer], self.s(bar, step) + off, sig)
+                self.ev(MIDI_TRACK.get(inst, inst), midi - (12 if inst == "hook" else 0), self.s(bar, step) + off, hold, vel / MEL_REF.get(inst, 0.4))
 
     def answers(self, phrases, start_bar, end_bar, root, units, chords, inst, level=0.13):
         rng = self.rng
@@ -303,6 +330,7 @@ class Track:
                     mm = tones[(2 - k) % len(tones)] + (12 if inst == "steel" else 0)
                     layer, sig = self.note(inst, mm, self.step_len(bar, 2), level * (0.9 - 0.2 * k), -0.4 if k % 2 else 0.4)
                     place(self.layers[layer], self.s(bar, step + k * b["steps"] / units), sig)
+                    self.ev(MIDI_TRACK.get(inst, inst), mm, self.s(bar, step + k * b["steps"] / units), self.step_len(bar, 2), level * (0.9 - 0.2 * k) / MEL_REF.get(inst, 0.4))
 
     # ---- Rendering ----------------------------------------------------------------
     def render(self):
@@ -317,6 +345,8 @@ class Track:
                    secas=palmas(rng, True), sordas=palmas(rng, False), cast=castanet(rng),
                    tom_l=tom(rng, 110.0, 0.55, -0.3), tom_m=tom(rng, 160.0, 0.5, 0.0), tom_h=tom(rng, 230.0, 0.45, 0.3))
         congas = [ga.conga(rng, f, 0.45, pn) for f, pn in ((190.0, -0.4), (240.0, 0.4), (150.0, 0.1))]
+        snd.update(conga0=congas[0], conga1=congas[1], conga2=congas[2])
+        self._snd = snd
 
         # Atmosphäre je Abschnitt (Wellen, Zikaden, Grillen), sanft interpoliert
         bar_pos = np.array([self.s(b) for b in range(self.total_bars)] + [self.n - 1])
@@ -380,11 +410,15 @@ class Track:
                 if P.get("pad") and b >= P.get("pad_from", 0):
                     place(self.layers["pad"], bar_s - int(0.12 * SR),
                           pad_chord(rng, tones, int(bar["len"] * SR * 1.02), cutoff=P["pad"], level=0.19 * P.get("pad_level", 1.0)))
+                    for t_ in tones:
+                        self.ev("Pad", t_, bar_s, int(bar["len"] * SR), 0.5 + 0.5 * P.get("pad_level", 1.0))
                 # Chor
                 if P.get("choir") and b >= P.get("choir_from", 0) and (b % P.get("choir_every", 1) == 0):
                     hold = int(bar["len"] * SR * P.get("choir_every", 1) * 1.02)
                     ch_tones = [t_ + 12 for t_ in tones[:4]]
                     place(self.layers["choir"], bar_s, choir_chord(rng, ch_tones, hold, level=P.get("choir_level", 0.16), vowel=P.get("choir", "ah")))
+                    for t_ in ch_tones:
+                        self.ev("Choir", t_, bar_s, hold, P.get("choir_level", 0.16) / 0.16)
 
                 # Gitarren-Begleitung
                 comp = P.get("comping")
@@ -401,6 +435,7 @@ class Track:
                             mm = tones[order[k] % len(tones)] + (12 if order[k] == 3 else 0)
                             place(self.layers["guitar"], at(k * 2) + int(rng.normal(0, 0.004) * SR),
                                   nylon_guitar(rng, mm, self.step_len(cur, 3), level=lvl, pan=-0.3 + 0.12 * k))
+                            self.ev("Guitar Comp", mm, at(k * 2), self.step_len(cur, 3), lvl / 0.2)
                     elif comp == "bul":
                         hits = [(st, True, 1.0 if st in (0, 12) else 0.8, False) for st in BUL_ACCENTS] + [(st, False, 0.45, True) for st in BUL_CONTRA]
                     elif comp == "trem":  # Tremolo-Gitarren als Klangbett statt Pad
@@ -408,6 +443,7 @@ class Track:
                         for k, t_ in enumerate(tones[:3]):
                             place(self.layers["guitar"], bar_s + int(k * 0.02 * SR),
                                   tremolo_note(rng, t_ + (12 if k == 0 else 0), int(bar["len"] * SR * 0.95), level=lvl * 0.5, pan=-0.35 + 0.35 * k, rate=9.0 + k))
+                            self.ev("Guitar Comp", t_ + (12 if k == 0 else 0), bar_s, int(bar["len"] * SR * 0.95), lvl / 0.2)
                     elif comp == "pick":  # ruhiges Zupfmuster
                         hits = None
                         order = [0, 2, 1, 3, 2, 1, 0, 2]
@@ -417,6 +453,7 @@ class Track:
                             mm = tones[order[k] % len(tones)] + (12 if order[k] == 3 else 0)
                             place(self.layers["guitar"], at(k * 2) + int(rng.normal(0, 0.004) * SR),
                                   nylon_guitar(rng, mm, self.step_len(cur, 3), level=lvl, pan=-0.3 + 0.08 * k))
+                            self.ev("Guitar Comp", mm, at(k * 2), self.step_len(cur, 3), lvl / 0.2)
                     else:
                         hits = None
                     if hits:
@@ -424,6 +461,8 @@ class Track:
                             place(self.layers["guitar"], at(st) + int(rng.normal(0, 0.004) * SR),
                                   strum_chord(rng, tones, self.step_len(cur, 2 if muted else 3), level=lvl * g, spread=0.012,
                                               pan=-0.25, down=down, muted=muted))
+                            for j, t_ in enumerate(tones):
+                                self.ev("Guitar Comp", t_, at(st) + int(j * 0.012 * SR), self.step_len(cur, 2 if muted else 3), lvl * g / 0.2)
 
                 # Bass
                 bass = P.get("bass")
@@ -437,6 +476,7 @@ class Track:
                             m_ = bass_root + BASS_INTERVALS[bass][i % len(BASS_INTERVALS[bass])]
                             if b % 4 == 3 and st == 14:
                                 m_ = bass_root + 10 if rng.random() < 0.5 else bass_root + 5
+                        self.ev("Bass", m_, at(st), int(self.step_len(cur, nxt - st) * 0.8), blvl)
                         if P.get("bass_inst", "synth") == "pluck":
                             place(self.layers["bass"], at(st), pluck_bass(rng, m_, int(self.step_len(cur, nxt - st) * 0.9), level=blvl))
                         else:
@@ -447,6 +487,7 @@ class Track:
                 if P.get("sub"):
                     for st in (0, 8):
                         place(self.layers["bass"], at(st), synth_bass(rng, float(midi_to_hz(bass_root)), self.step_len(cur, 7), level=P["sub"], cutoff=90.0, drive=1.0, q=0.7))
+                        self.ev("Sub", bass_root - 12, at(st), self.step_len(cur, 7), P["sub"] / 0.6)
 
                 # Drums
                 groove = P.get("drums")
@@ -457,6 +498,7 @@ class Track:
                             continue
                         pos = at(st)
                         place(self.layers["drums"], pos, snd[sound] * g * dl)
+                        self.ev("Drums", GM[sound], pos, self.step_len(cur, 1), g * dl)
                         if sound == "kick":
                             self.kick_times.append(pos)
                     hats_name = P.get("hats", "none")
@@ -464,12 +506,15 @@ class Track:
                         hats_name = P["hats_alt"]
                     for st, sound, g in HATS[hats_name]:
                         place(self.layers["drums"], at(st) + int(rng.normal(0, 0.0015) * SR), snd[sound] * g * dl * rng.uniform(0.85, 1.0))
+                        self.ev("Drums", GM[sound], at(st), self.step_len(cur, 1), g * dl)
                     if P.get("ride"):
                         for st in range(0, steps, 2):
                             place(self.layers["drums"], at(st), snd["ride"] * (1.0 if st % 4 == 0 else 0.7))
+                            self.ev("Drums", GM["ride"], at(st), self.step_len(cur, 1), 1.0 if st % 4 == 0 else 0.7)
                     if last and P.get("fill"):
                         for k, st in enumerate((steps - 4, steps - 3, steps - 2, steps - 1)):
                             place(self.layers["drums"], at(st), snd["snare"] * (0.3 + 0.2 * k) * dl)
+                            self.ev("Drums", GM["snare"], at(st), self.step_len(cur, 1), (0.3 + 0.2 * k) * dl)
 
                 # Percussion
                 perc = P.get("perc", [])
@@ -477,68 +522,70 @@ class Track:
                 if "cajon" in perc:
                     if meter == "bul":
                         for st in BUL_ACCENTS:
-                            place(self.layers["perc"], at(st), (snd["cjb"] if st in (0, 12) else snd["cjs"]) * pl)
+                            self.hit(at(st), "cjb" if st in (0, 12) else "cjs", pl)
                         for st in (4, 8, 18, 22):
                             if rng.random() < 0.6:
-                                place(self.layers["perc"], at(st), snd["cjs"] * 0.35 * pl)
+                                self.hit(at(st), "cjs", 0.35 * pl)
                     elif meter == "6/8":
-                        place(self.layers["perc"], at(0), snd["cjb"] * pl)
-                        place(self.layers["perc"], at(6), snd["cjs"] * 0.8 * pl)
+                        self.hit(at(0), "cjb", pl)
+                        self.hit(at(6), "cjs", 0.8 * pl)
                         for st in (4, 10):
-                            place(self.layers["perc"], at(st), snd["cjs"] * 0.3 * pl)
+                            self.hit(at(st), "cjs", 0.3 * pl)
                     else:
                         for st in (0, 8):
-                            place(self.layers["perc"], at(st) + int(rng.normal(0, 0.002) * SR), snd["cjb"] * pl)
+                            self.hit(at(st) + int(rng.normal(0, 0.002) * SR), "cjb", pl)
                         for st in (4, 12):
-                            place(self.layers["perc"], at(st) + int(rng.normal(0, 0.002) * SR), snd["cjs"] * pl)
+                            self.hit(at(st) + int(rng.normal(0, 0.002) * SR), "cjs", pl)
                         for st in (6, 14, 15):
                             if rng.random() < 0.6:
-                                place(self.layers["perc"], at(st), snd["cjs"] * 0.35 * pl)
+                                self.hit(at(st), "cjs", 0.35 * pl)
                 if "palmas" in perc:
                     if meter == "bul":
                         for st in BUL_ACCENTS:
-                            place(self.layers["perc"], at(st) + int(rng.normal(0, 0.004) * SR), snd["secas"] * (1.0 if st in (0, 12) else 0.85) * pl)
+                            self.hit(at(st) + int(rng.normal(0, 0.004) * SR), "secas", (1.0 if st in (0, 12) else 0.85) * pl)
                         for st in BUL_CONTRA:
-                            place(self.layers["perc"], at(st) + int(rng.normal(0, 0.004) * SR), snd["sordas"] * 0.7 * pl)
+                            self.hit(at(st) + int(rng.normal(0, 0.004) * SR), "sordas", 0.7 * pl)
                     else:
                         for st in (2, 6, 10, 14):
-                            place(self.layers["perc"], at(st) + int(rng.normal(0, 0.004) * SR), snd["secas"] * 0.8 * pl)
+                            self.hit(at(st) + int(rng.normal(0, 0.004) * SR), "secas", 0.8 * pl)
                         for st in (4, 12):
-                            place(self.layers["perc"], at(st) + int(rng.normal(0, 0.004) * SR), snd["sordas"] * 0.75 * pl)
+                            self.hit(at(st) + int(rng.normal(0, 0.004) * SR), "sordas", 0.75 * pl)
                 if "castanets" in perc:
                     for st in (3, 7, 11) if meter != "bul" else (2, 8, 14, 20):
                         if rng.random() < 0.7:
-                            place(self.layers["perc"], at(st), snd["cast"] * 0.75 * pl)
+                            self.hit(at(st), "cast", 0.75 * pl)
                     if last or b % 4 == 3:
                         for k in range(5):
-                            place(self.layers["perc"], at(steps - 1) + int(k * 0.04 * SR), snd["cast"] * (0.45 + 0.1 * k) * pl)
+                            self.hit(at(steps - 1) + int(k * 0.04 * SR), "cast", (0.45 + 0.1 * k) * pl)
                 if "congas" in perc:
                     pat = ((3, 0), (7, 1), (11, 0), (13, 2)) if meter == "4/4" else ((2, 0), (5, 1), (8, 0), (11, 2)) if meter == "6/8" else ((4, 0), (10, 1), (14, 0), (22, 2))
                     for st, ci in pat:
                         if rng.random() < 0.8:
-                            place(self.layers["perc"], at(st) + int(rng.normal(0, 0.003) * SR), congas[ci] * 0.75 * pl)
+                            self.hit(at(st) + int(rng.normal(0, 0.003) * SR), f"conga{ci}", 0.75 * pl)
                 if "rimloop" in perc:
                     for st in (3, 6, 9, 13) + ((11,) if b % 2 else ()):
-                        place(self.layers["perc"], at(st) + int(rng.normal(0, 0.0015) * SR), snd["rim"] * 0.55 * pl)
+                        self.hit(at(st) + int(rng.normal(0, 0.0015) * SR), "rim", 0.55 * pl)
                 if "shaker" in perc:
                     for st in range(0, steps, 2):
-                        place(self.layers["perc"], at(st) + int(rng.normal(0, 0.002) * SR), snd["shaker"] * (1.0 if st % 4 == 0 else 0.5) * 0.7 * pl)
+                        self.hit(at(st) + int(rng.normal(0, 0.002) * SR), "shaker", (1.0 if st % 4 == 0 else 0.5) * 0.7 * pl)
                 if "toms" in perc:
                     # Trommel-Stakkato: Frage (Cajón) und Antwort (Toms), dichter zum Phrasenende
                     dens = 0.35 + 0.5 * (b % 4) / 3
                     for st in range(steps):
                         if st % 4 == 0 or rng.random() < dens:
-                            t_ = (snd["tom_h"], snd["tom_m"], snd["tom_l"])[(st // 2 + b) % 3]
+                            tn = ("tom_h", "tom_m", "tom_l")[(st // 2 + b) % 3]
                             if (b % 2 == 0 and st < steps // 2) or (b % 2 == 1 and st >= steps // 2):
-                                place(self.layers["perc"], at(st), t_ * (0.9 if st % 4 == 0 else 0.6) * pl)
+                                self.hit(at(st), tn, (0.9 if st % 4 == 0 else 0.6) * pl)
                     if b % 4 == 3:
                         for k, st in enumerate(range(steps - 6, steps)):
-                            place(self.layers["perc"], at(st), (snd["tom_h"], snd["tom_m"], snd["tom_l"])[k % 3] * (0.5 + 0.08 * k) * pl)
+                            self.hit(at(st), ("tom_h", "tom_m", "tom_l")[k % 3], (0.5 + 0.08 * k) * pl)
 
                 # Stabs
                 stabs = P.get("stabs")
                 if stabs:
                     for st in P.get("stab_steps", (2, 10)):
+                        for t_ in tones[:4]:
+                            self.ev("Brass Stabs" if stabs == "brass" else "Chords", t_ + 12, at(st), self.step_len(cur, 1.5), P.get("stab_level", 0.18) / 0.2)
                         if stabs == "brass":
                             place(self.layers["brass"], at(st), brass_stab(rng, [t_ + 12 for t_ in tones[:3]], self.step_len(cur, 1.5), level=P.get("stab_level", 0.2)))
                         elif stabs == "dub":
@@ -560,6 +607,7 @@ class Track:
                         m_ = bass_root + 12 + iv
                         place(self.layers["acid"], at(st), acid_note(rng, m_, self.step_len(cur, 1.3 if slide else 0.6), prev_midi=prev if slide else None,
                                                                     accent=acc, level=lvl, base_cut=cut, env_amount=2200.0, q=6.5))
+                        self.ev("Acid", m_, at(st), self.step_len(cur, 1.3 if slide else 0.6), (1.0 if acc else 0.7) * min(1.0, lvl / 0.3))
                         prev = m_
 
                 # Trance-Arpeggio
@@ -571,6 +619,7 @@ class Track:
                             continue
                         place(self.layers["trance"], at(st), trance_pluck(rng, order[(st + b * 2) % len(order)], self.step_len(cur, 0.6),
                                                                           level=P["arp"], pan=0.55 if st % 2 else -0.55))
+                        self.ev("Arp", order[(st + b * 2) % len(order)], at(st), self.step_len(cur, 0.6), 0.8)
 
                 # Effekte
                 fx = P.get("fx", [])
@@ -579,21 +628,30 @@ class Track:
                 if "roll" in fx and last:
                     for st in range(steps):
                         place(self.layers["drums"], at(st), snd["snare"] * (0.2 + 0.7 * st / (steps - 1)))
+                        self.ev("Drums", GM["snare"], at(st), self.step_len(cur, 1), 0.2 + 0.7 * st / (steps - 1))
                 if "crash" in fx and b == 0:
                     place(self.layers["drums"], bar_s, snd["crash"])
+                    self.ev("Drums", GM["crash"], bar_s, self.step_len(cur, 4), 0.9)
                 if "bell" in fx and b % 4 == 0:
                     for k, semi in enumerate(P.get("bell_motif", [(0, 7), (6, 12), (12, 5)])):
                         st, sm = semi
                         place(self.layers["bell"], at(st), bell(rng, root + 12 + sm, self.step_len(cur, 6), level=0.22, pan=0.2 * (k - 1)))
+                        self.ev("Bell", root + 12 + sm, at(st), self.step_len(cur, 6), 0.8)
                 if "final_chord" in fx and b == 0:
                     final = voice(CH[prog[0]] + [14], root)
                     place(self.layers["guitar"], bar_s, strum_chord(rng, final, int(3.0 * SR), level=0.34, spread=0.05))
                     place(self.layers["pad"], bar_s, pad_chord(rng, final, int(6.0 * SR), cutoff=650.0, level=0.22, attack=1.2, release=4.0))
+                    for j, t_ in enumerate(final):
+                        self.ev("Guitar Comp", t_, bar_s + int(j * 0.05 * SR), int(3.0 * SR), 0.9)
+                        self.ev("Pad", t_, bar_s, int(6.0 * SR), 0.7)
                 if "final_choir" in fx and b == 0:
                     final = voice(CH[prog[0]] + [14], root)
                     place(self.layers["choir"], bar_s, choir_chord(rng, [t_ + 12 for t_ in final[:4]], int(7.0 * SR), level=0.18, vowel="oo", attack=1.5, release=5.0))
+                    for t_ in final[:4]:
+                        self.ev("Choir", t_ + 12, bar_s, int(7.0 * SR), 0.8)
                 if "stop_note" in fx and b == 0:
                     place(self.layers["flute"], bar_s, flute(rng, root + 19, int(bar["len"] * SR * 1.8), level=0.28, pan=0.0))
+                    self.ev("Flute", root + 19, bar_s, int(bar["len"] * SR * 1.8), 0.8)
         return self.mix()
 
     def mix(self):
@@ -640,6 +698,7 @@ class Track:
             for k, v in parts.items():
                 r = np.sqrt(np.mean(v ** 2)) + 1e-9
                 print(f"      {k:7s} {20*np.log10(r):6.1f} dBFS", file=sys.stderr)
+        self.parts = parts
         mixv = sum(parts.values())
         mixv = highpass(mixv, 28.0)
         mixv *= self.dyn_curve[:, None]
@@ -937,6 +996,133 @@ TRACKS = [
 ]
 
 
+# --------------------------------------------------------------------------- #
+# Export: MIDI (mit Tempo-Map und Taktarten) und Stems
+# --------------------------------------------------------------------------- #
+def meter_info(meter):
+    if meter == "4/4":
+        return 4, 4, 4.0
+    if meter == "6/8":
+        return 6, 8, 3.0
+    return 12, 8, 6.0       # Bulería-Compás als 12/8
+
+
+def write_midi(track, path, tpq=480):
+    import mido
+    mid = mido.MidiFile(ticks_per_beat=tpq, type=1)
+    conductor = mido.MidiTrack()
+    mid.tracks.append(conductor)
+    import unicodedata
+    plain = unicodedata.normalize("NFKD", track.spec["title"]).encode("ascii", "ignore").decode()
+    conductor.append(mido.MetaMessage("track_name", name=f"{plain} - Tempo & Takt", time=0))
+    tick_start = [0]
+    bar_ticks = []
+    cond = []  # (tick, prio, msg)
+    last_meter, last_tempo = None, None
+    for i, bar in enumerate(track.bars):
+        num, den, quarters = meter_info(bar["meter"])
+        bt = int(quarters * tpq)
+        bar_ticks.append(bt)
+        t0 = tick_start[-1]
+        qbpm = quarters / (bar["len"] / 60.0)
+        tempo = mido.bpm2tempo(qbpm)
+        if bar["meter"] != last_meter:
+            cond.append((t0, 0, mido.MetaMessage("time_signature", numerator=num, denominator=den, time=0)))
+            last_meter = bar["meter"]
+        if last_tempo is None or abs(tempo - last_tempo) > 500:
+            cond.append((t0, 1, mido.MetaMessage("set_tempo", tempo=tempo, time=0)))
+            last_tempo = tempo
+        if i == 0 or track.bars[i - 1]["sec"] != bar["sec"]:
+            cond.append((t0, 2, mido.MetaMessage("marker", text=track.sections[bar["sec"]]["name"], time=0)))
+        tick_start.append(t0 + bt)
+    cond.sort(key=lambda c: (c[0], c[1]))
+    cur = 0
+    for t, _, msg in cond:
+        msg.time = t - cur
+        conductor.append(msg)
+        cur = t
+    conductor.append(mido.MetaMessage("end_of_track", time=0))
+
+    starts = track.bar_start
+
+    def to_tick(sample):
+        t = sample / SR
+        i = int(np.searchsorted(starts, t, side="right") - 1)
+        i = max(0, min(i, len(track.bars) - 1))
+        return int(tick_start[i] + (t - starts[i]) / track.bars[i]["len"] * bar_ticks[i])
+
+    by_track = {}
+    for name, note, start, dur, vel in track.events:
+        by_track.setdefault(name, []).append((to_tick(start), to_tick(start + dur), note, vel))
+    order = ["Drums", "Percussion", "Bass", "Sub", "Guitar", "Guitar Comp", "Flute", "Trumpet", "Trumpet (muted)", "Steel Drum",
+             "Choir Lead", "Choir", "Pad", "Chords", "Brass Stabs", "Acid", "Arp", "Lead", "Supersaw", "Bell"]
+    names = [n for n in order if n in by_track] + [n for n in by_track if n not in order]
+    for ch_i, name in enumerate(names):
+        evs = by_track[name]
+        tr = mido.MidiTrack()
+        mid.tracks.append(tr)
+        channel = 9 if name in ("Drums", "Percussion") else (ch_i % 15 + (1 if ch_i % 15 >= 9 else 0))
+        tr.append(mido.MetaMessage("track_name", name=name, time=0))
+        if channel != 9:
+            tr.append(mido.Message("program_change", program=PROGRAM.get(name, 0), channel=channel, time=0))
+        msgs = []
+        for on, off, note, vel in evs:
+            note = int(max(0, min(127, note)))
+            v = int(max(1, min(127, round(30 + 97 * vel))))
+            off = max(off, on + 10)
+            msgs.append((on, 1, note, v))
+            msgs.append((off, 0, note, 0))
+        msgs.sort(key=lambda m: (m[0], m[1]))
+        cur = 0
+        for t, kind, note, v in msgs:
+            tr.append(mido.Message("note_on" if kind else "note_off", note=note, velocity=v, channel=channel, time=t - cur))
+            cur = t
+        tr.append(mido.MetaMessage("end_of_track", time=0))
+    mid.save(path)
+    return len(by_track), len(track.events)
+
+
+def _write_audio(path_base, sig, wav=False):
+    from scipy.io import wavfile
+    if wav:
+        wavfile.write(path_base + ".wav", SR, np.clip(sig, -1, 1).astype(np.float32))
+        return path_base + ".wav"
+    import lameenc
+    enc = lameenc.Encoder()
+    enc.set_bit_rate(320)
+    enc.set_in_sample_rate(SR)
+    enc.set_channels(2)
+    enc.set_quality(2)
+    pcm = (np.clip(sig, -1, 1) * 32767.0).astype(np.int16)
+    with open(path_base + ".mp3", "wb") as fh:
+        fh.write(enc.encode(pcm.tobytes()) + enc.flush())
+    return path_base + ".mp3"
+
+
+def write_stems(track, mixv, folder, wav=False):
+    """Alle Spuren zeitgleich, gemeinsame Verstärkung (Summe der Stems = Mix vor dem Master)."""
+    os.makedirs(folder, exist_ok=True)
+    total = sum(track.parts.values()) * track.dyn_curve[:, None]
+    gain = 0.89 / (np.abs(total).max() + 1e-9)
+    names = {"drums": "Drums", "perc": "Percussion", "bass": "Bass", "guitar": "Guitar", "flute": "Flute", "brass": "Trumpet",
+             "steel": "Steel Drum", "pad": "Pad", "choir": "Choir", "acid": "Acid", "stab": "Chords", "trance": "Trance FX",
+             "lead": "Lead", "bell": "Bell", "atmos": "Atmosphere"}
+    written = []
+    for i, (key, sig) in enumerate(track.parts.items(), 1):
+        if np.abs(sig).max() < 1e-4:
+            continue
+        stem = sig * track.dyn_curve[:, None] * gain
+        fn = f"{i:02d}-{names.get(key, key).lower().replace(' ', '-')}"
+        written.append(_write_audio(os.path.join(folder, fn), stem, wav))
+    _write_audio(os.path.join(folder, "00-mix-master"), mixv, wav)
+    with open(os.path.join(folder, "tempo-map.txt"), "w", encoding="utf-8") as fh:
+        fh.write(f"{track.spec['title']}\nTakt  Abschnitt     Taktart  BPM(Viertel)  Start(s)\n")
+        for i, bar in enumerate(track.bars):
+            num, den, quarters = meter_info(bar["meter"])
+            fh.write(f"{i+1:4d}  {track.sections[bar['sec']]['name']:12s} {bar['meter']:7s} {quarters/(bar['len']/60):7.2f}  {track.bar_start[i]:8.2f}\n")
+    return written
+
+
 def slug_of(spec):
     import unicodedata
     plain = unicodedata.normalize("NFKD", spec["title"]).encode("ascii", "ignore").decode()
@@ -957,6 +1143,8 @@ def main():
     ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "out"))
     ap.add_argument("--track", type=float, default=None)
     ap.add_argument("--wav", action="store_true")
+    ap.add_argument("--export", action="store_true", help="MIDI und Stems nach out/midi und out/stems schreiben")
+    ap.add_argument("--stems-wav", action="store_true", help="Stems als WAV (32 Bit float) statt MP3 320 kbit/s")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     tracklist = []
@@ -970,6 +1158,11 @@ def main():
         ga.write_outputs(mixv, os.path.join(args.out, slug), args.wav, True)
         dur = len(mixv) / SR
         print(f"    {int(dur // 60)}:{int(dur % 60):02d} min, RMS {20*np.log10(np.sqrt(np.mean(mixv**2))):.1f} dBFS", flush=True)
+        if args.export:
+            os.makedirs(os.path.join(args.out, "midi"), exist_ok=True)
+            n_tr, n_ev = write_midi(tr, os.path.join(args.out, "midi", slug + ".mid"))
+            stems = write_stems(tr, mixv, os.path.join(args.out, "stems", slug), wav=args.stems_wav)
+            print(f"    MIDI: {n_tr} Spuren, {n_ev} Noten; Stems: {len(stems)} Dateien", flush=True)
         tracklist.append(dict(nr=spec["nr"], title=spec["title"], style=spec["style"], key=spec["mode"], seed=spec["seed"],
                               interlude=spec.get("interlude", False), duration_s=round(dur, 1), file=slug + ".mp3"))
     if args.track is None:

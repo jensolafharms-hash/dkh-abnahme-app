@@ -10,3 +10,4 @@ frontend/.env
 __pycache__/
 marbella-album/Sounds-of-Marbella-2026.zip
 marbella-album/Sounds-of-Marbella-2026-Teil*.zip
+marbella-album/out/stems/

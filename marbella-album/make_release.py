@@ -4,7 +4,8 @@ Release-Paket bauen:
   out/master/cd/     WAV 16 Bit / 44,1 kHz je Titel + Cue-Sheet mit CD-Text (zum Brennen einer Audio-CD)
   out/master/flac/   FLAC-Master je Titel (für Distributoren)
   out/Sounds-of-Marbella-2026-MP3.zip        Album als ZIP: getaggte MP3s (192 kbit/s), Cover, Playlist
-  out/Sounds-of-Marbella-2026-MP3-mobil.zip  dasselbe mit 96 kbit/s (klein, für den Versand)
+  out/Sounds-of-Marbella-2026-WhatsApp.zip   dasselbe mit 96 kbit/s (unter 30 MB, als WhatsApp-Dokument senden)
+  out/Sounds-of-Marbella-2026-E-Mail.zip     dasselbe mit 64 kbit/s (unter 20 MB, passt als E-Mail-Anhang)
 
     python3 make_release.py
 """
@@ -54,7 +55,7 @@ def main():
                  "Die Cue-Datei in ein Brennprogramm laden (z. B. ImgBurn, CDBurnerXP, Burn auf dem Mac, K3b) und als Audio-CD\n"
                  "brennen. Titel, Interpret und Albumname werden als CD-Text mitgeschrieben. Gesamtspielzeit 36:03,\n"
                  "passt auf eine 74- oder 80-Minuten-CD-R.\n")
-    for name, kbps in (("Sounds-of-Marbella-2026-MP3.zip", 0), ("Sounds-of-Marbella-2026-MP3-mobil.zip", 96)):
+    for name, kbps in (("Sounds-of-Marbella-2026-MP3.zip", 0), ("Sounds-of-Marbella-2026-WhatsApp.zip", 96), ("Sounds-of-Marbella-2026-E-Mail.zip", 64)):
         zpath = os.path.join(OUT, name)
         folder = ALBUM
         m3u = ["#EXTM3U"]

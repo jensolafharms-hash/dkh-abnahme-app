@@ -206,6 +206,38 @@ def palm(img, x, y_base, height, lean=0.0, scale=1.0, color=(12, 10, 24), seed=3
     return img
 
 
+PHOTO_FRONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover", "photo-front.jpg")
+PHOTO_BACK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover", "photo-back.jpg")
+
+
+def load_photo(path, w, h, darken=0.0, blur=0.0):
+    """Foto laden, auf w x h beschneiden (Bildmitte), optional abdunkeln und weichzeichnen."""
+    if not os.path.exists(path):
+        return None
+    im = Image.open(path).convert("RGB")
+    scale = max(w / im.width, h / im.height)
+    im = im.resize((max(w, int(im.width * scale + 0.5)), max(h, int(im.height * scale + 0.5))), Image.LANCZOS)
+    left, top = (im.width - w) // 2, (im.height - h) // 2
+    im = im.crop((left, top, left + w, top + h))
+    if blur:
+        im = im.filter(ImageFilter.GaussianBlur(blur))
+    if darken:
+        a = np.asarray(im).astype(float) * (1.0 - darken)
+        im = Image.fromarray(a.astype(np.uint8), "RGB")
+    return im
+
+
+def overlay_gradient(img, top_alpha=0.55, bottom_alpha=0.65, color=(12, 8, 30)):
+    """Dunkler Verlauf oben und unten, damit Text auf dem Foto lesbar bleibt."""
+    w, h = img.size
+    ys = np.linspace(0, 1, h)
+    alpha = np.clip(top_alpha * (1 - ys / 0.42), 0, 1) + np.clip(bottom_alpha * (ys - 0.62) / 0.38, 0, 1)
+    a = np.asarray(img).astype(float)
+    col = np.array(color, dtype=float)
+    a = a * (1 - alpha[:, None, None]) + col * alpha[:, None, None]
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGB")
+
+
 def text_size(fnt, s):
     l, t, r, b = fnt.getbbox(s)
     return r - l, b - t, l, t
@@ -275,6 +307,20 @@ def fmt(sec):
 # Front
 # --------------------------------------------------------------------------- #
 def make_front(S=3000):
+    photo = load_photo(PHOTO_FRONT, S, S)
+    if photo is not None:
+        img = overlay_gradient(photo, 0.5, 0.55)
+        img = vignette(img, 0.3)
+        draw_artist_mirrored_j(img, S // 2, int(S * 0.115), int(S * 0.115))
+        d = ImageDraw.Draw(img)
+        y = int(S * 0.265)
+        center_text(d, S, y, TITLE_A.upper(), font(F_SANS_L, S * 0.036), (255, 240, 225), spacing=int(S * 0.012))
+        y += int(S * 0.055)
+        center_text(d, S, y, TITLE_B.upper(), font(F_SANS_B, S * 0.105), (255, 250, 240), spacing=int(S * 0.010))
+        y += int(S * 0.135)
+        center_text(d, S, y, YEAR, font(F_SANS_B, S * 0.060), (255, 236, 200), spacing=int(S * 0.02))
+        center_text(d, S, int(S * 0.935), TAGLINE.upper(), font(F_SANS, S * 0.020), (225, 215, 230), spacing=int(S * 0.004))
+        return img
     img = gradient(S, S, [
         (0.00, (24, 16, 64)),
         (0.22, (92, 30, 110)),
@@ -361,6 +407,11 @@ def impressum_lines():
 
 
 def make_back(S=3000):
+    photo = load_photo(PHOTO_BACK if os.path.exists(PHOTO_BACK) else PHOTO_FRONT, S, S, darken=0.55, blur=6.0)
+    if photo is not None:
+        img = overlay_gradient(photo, 0.35, 0.45)
+        img = vignette(img, 0.35)
+        return _back_text(img, S)
     img = gradient(S, S, [(0, (14, 10, 40)), (0.5, (40, 18, 70)), (1, (12, 20, 48))])
     horizon = int(S * 0.80)
     img = sun(img, int(S * 0.78), int(S * 0.78), int(S * 0.07), color=(255, 200, 130), glow=(200, 90, 90), cut_below=horizon)
@@ -369,8 +420,11 @@ def make_back(S=3000):
     img = sea(img, horizon, S, base=(10, 16, 40), light=(255, 170, 120), cx=int(S * 0.78), rng=np.random.default_rng(11))
     img = vignette(img, 0.4)
     img = add_grain(img, 4)
-    d = ImageDraw.Draw(img)
+    return _back_text(img, S)
 
+
+def _back_text(img, S):
+    d = ImageDraw.Draw(img)
     m = int(S * 0.10)
     draw_artist_mirrored_j(img, S // 2, int(S * 0.075), int(S * 0.062))
     d = ImageDraw.Draw(img)
@@ -401,13 +455,17 @@ def make_inlay(dpi=300):
     mm = dpi / 25.4
     W, H = int(150 * mm), int(118 * mm)
     spine = int(6.5 * mm)
-    img = gradient(W, H, [(0, (14, 10, 40)), (0.55, (44, 20, 76)), (1, (12, 20, 48))])
-    horizon = int(H * 0.82)
-    img = sun(img, int(W * 0.75), int(H * 0.80), int(H * 0.07), color=(255, 200, 130), glow=(200, 90, 90))
-    d = ImageDraw.Draw(img)
-    mountain(d, W, horizon, (30, 14, 56), peak_x=int(W * 0.30), peak_y=int(H * 0.72), spread=W * 0.14)
-    img = sea(img, horizon, H, base=(10, 16, 40), light=(255, 170, 120), cx=int(W * 0.75), rng=np.random.default_rng(21))
-    img = add_grain(img, 4)
+    photo = load_photo(PHOTO_BACK if os.path.exists(PHOTO_BACK) else PHOTO_FRONT, W, H, darken=0.55, blur=5.0)
+    if photo is not None:
+        img = overlay_gradient(photo, 0.35, 0.4)
+    else:
+        img = gradient(W, H, [(0, (14, 10, 40)), (0.55, (44, 20, 76)), (1, (12, 20, 48))])
+        horizon = int(H * 0.82)
+        img = sun(img, int(W * 0.75), int(H * 0.80), int(H * 0.07), color=(255, 200, 130), glow=(200, 90, 90))
+        d = ImageDraw.Draw(img)
+        mountain(d, W, horizon, (30, 14, 56), peak_x=int(W * 0.30), peak_y=int(H * 0.72), spread=W * 0.14)
+        img = sea(img, horizon, H, base=(10, 16, 40), light=(255, 170, 120), cx=int(W * 0.75), rng=np.random.default_rng(21))
+        img = add_grain(img, 4)
     d = ImageDraw.Draw(img)
     # Rücken
     for sx in (0, W - spine):

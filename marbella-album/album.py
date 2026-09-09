@@ -21,7 +21,8 @@ import generate_album as ga  # noqa: E402
 from generate_album import (SR, place, to_stereo, lowpass, highpass, bandpass, reverb, delay, chorus_widen,  # noqa: E402
                             make_reverb_ir, kick, hat, clap, shaker, snare_layer, ride, crash, rim, open_hat_909,
                             synth_bass, pad_chord, ks_guitar, lead, supersaw_lead, trance_pluck, riser, acid_note,
-                            house_stab, ocean, seagulls, master_chain, midi_to_hz, soft_clip, fit, envelope, saw)
+                            house_stab, ocean, seagulls, master_chain, midi_to_hz, soft_clip, fit, envelope, saw,
+                            sweep_filter, noise_sweep, impact, reverse_crash, siren)
 from compose_song import (nylon_guitar, strum_chord, tremolo_note, steel_drum, flute, trumpet, brass_stab,  # noqa: E402
                           pluck_bass, cajon_bass, cajon_slap, palmas, castanet, CH, voice, ALBUM_TITLE, ALBUM_ARTIST)
 
@@ -167,6 +168,7 @@ GROOVES = {
     "bul":      [(0, "kick", 0.5), (12, "kick", 0.45)],
     "kickonly": [(0, "kick", 0.9), (4, "kick", 0.85), (8, "kick", 0.9), (12, "kick", 0.85)],
     "bul_drive": [(0, "kick", 1.0), (6, "kick", 0.8), (12, "kick", 0.95), (16, "kick", 0.8), (20, "kick", 0.85), (12, "clap", 0.6)],
+    "techno":   [(0, "kick", 1.0), (4, "kick", 1.0), (8, "kick", 1.0), (12, "kick", 1.0), (4, "clap", 0.8), (12, "clap", 0.8), (12, "snare", 0.45), (8, "rim", 0.35)],
 }
 HATS = {
     "none": [], "offbeat": [(2, "ohat", 0.6), (6, "ohat", 0.6), (10, "ohat", 0.6), (14, "ohat", 0.6)],
@@ -174,10 +176,13 @@ HATS = {
     "full": [(s, "ohat" if s in (2, 6, 10, 14) else "hat", (0.95 if s % 2 == 0 else 0.5)) for s in range(16)],
     "six8": [(s, "hat", 0.7 if s % 6 == 0 else 0.4) for s in range(0, 12, 2)],
     "techno16": [(s, "hat", 0.9 if s % 4 == 2 else (0.55 if s % 2 == 0 else 0.35)) for s in range(16)] + [(s, "ohat", 0.7) for s in (2, 6, 10, 14)],
+    "techno_off": [(s, "hat", 0.8 if s % 4 == 2 else 0.4) for s in range(2, 16, 2)] + [(s, "ohat", 0.8) for s in (2, 6, 10, 14)],
 }
 BASS_STEPS = {"roll": [0, 2, 4, 6, 8, 10, 12, 14], "deep": [0, 3, 6, 8, 11, 14], "long": [0, 8], "half": [0, 10],
-              "six8": [0, 6, 10], "bul": [0, 6, 12, 16, 20], "one": [0], "house": [0, 2, 4, 6, 8, 10, 12, 14]}
-BASS_INTERVALS = {"house": [0, 12, 0, 7, 0, 12, 0, 10]}   # melodische Bassline: Oktave, Quinte, Septime
+              "six8": [0, 6, 10], "bul": [0, 6, 12, 16, 20], "one": [0], "house": [0, 2, 4, 6, 8, 10, 12, 14],
+              "techno": [2, 3, 6, 7, 10, 11, 14, 15]}
+BASS_INTERVALS = {"house": [0, 12, 0, 7, 0, 12, 0, 10],   # melodische Bassline: Oktave, Quinte, Septime
+                  "techno": [0, 0, 0, 12, 0, 0, 7, 0]}     # rollender Techno-Bass, meist Grundton
 BUL_ACCENTS = [0, 6, 12, 16, 20]          # Zählzeiten 12, 3, 6, 8, 10 als 8tel-Schritte
 BUL_CONTRA = [3, 9, 15, 19, 23]
 
@@ -233,6 +238,7 @@ class Track:
         self.sec_start = [sum(s["bars"] for s in self.sections[:i]) for i in range(len(self.sections))]
         self.events = []  # (track, note, start_sample, dur_samples, velocity 0..1)
         self.pre_mix = None  # optionaler Hook vor der Mischung (z. B. SoundFont-Ersatz)
+        self.autom = []  # Summen-Automationen: (start, end, art, param)
 
     def ev(self, track, note, start, dur, vel):
         if start < 0 or start >= self.n:
@@ -497,6 +503,9 @@ class Track:
                 if bass:
                     blvl = P.get("bass_level", 0.75)
                     stepsb = BASS_STEPS[bass]
+                    if bass == "techno":
+                        stepsb = ([2, 3, 6, 7, 10, 11, 14, 15], [2, 3, 6, 7, 10, 11, 14, 15], [2, 4, 6, 7, 10, 12, 14, 15],
+                                  [2, 3, 6, 7, 9, 10, 11, 13, 14, 15])[b % 4]
                     for i, st in enumerate(stepsb):
                         nxt = stepsb[i + 1] if i + 1 < len(stepsb) else steps
                         m_ = bass_root + (12 if bass in ("roll", "deep") and st in (6, 14) and rng.random() < 0.5 else 0)
@@ -509,7 +518,7 @@ class Track:
                             place(self.layers["bass"], at(st), pluck_bass(rng, m_, int(self.step_len(cur, nxt - st) * 0.9), level=blvl))
                         else:
                             place(self.layers["bass"], at(st),
-                                  synth_bass(rng, float(midi_to_hz(m_)), int(self.step_len(cur, nxt - st) * (0.65 if bass in ("roll", "deep", "house") else 0.92)),
+                                  synth_bass(rng, float(midi_to_hz(m_)), int(self.step_len(cur, nxt - st) * (0.65 if bass in ("roll", "deep", "house") else 0.45 if bass == "techno" else 0.92)),
                                              level=blvl * (1.0 if st in (0, 8, 12) else 0.85), cutoff=P.get("bass_cut", 600.0), drive=P.get("bass_drive", 1.8)))
 
                 if P.get("sub"):
@@ -522,8 +531,11 @@ class Track:
                 groove = P.get("drums")
                 if groove and not (P.get("drums_from", 0) > b):
                     dl = P.get("drum_level", 1.0)
+                    kick_out = P.get("kick_out") and b % 16 == 15 and not last
                     for st, sound, g in GROOVES[groove]:
-                        if last and P.get("fill") and st >= 12 and sound == "kick" and groove in ("house", "shuffle", "deep"):
+                        if last and P.get("fill") and st >= 12 and sound == "kick" and groove in ("house", "shuffle", "deep", "techno"):
+                            continue
+                        if kick_out and sound == "kick":
                             continue
                         pos = at(st)
                         place(self.layers["drums"], pos, snd[sound] * g * dl)
@@ -534,12 +546,20 @@ class Track:
                     if P.get("hats_alt") and (b // 8) % 2 == 1:
                         hats_name = P["hats_alt"]
                     for st, sound, g in HATS[hats_name]:
+                        if P.get("hat_var") and sound == "hat" and st % 4 != 2 and rng.random() < 0.15:
+                            continue
                         place(self.layers["drums"], at(st) + int(rng.normal(0, 0.0015) * SR), snd[sound] * g * dl * rng.uniform(0.85, 1.0))
                         self.ev("Drums", GM[sound], at(st), self.step_len(cur, 1), g * dl)
                     if P.get("ride"):
                         for st in range(0, steps, 2):
                             place(self.layers["drums"], at(st), snd["ride"] * (1.0 if st % 4 == 0 else 0.7))
                             self.ev("Drums", GM["ride"], at(st), self.step_len(cur, 1), 1.0 if st % 4 == 0 else 0.7)
+                    if kick_out:
+                        for st in range(0, steps, 2):
+                            place(self.layers["drums"], at(st), snd["clap"] * (0.3 + 0.5 * st / steps) * dl)
+                            self.ev("Drums", GM["clap"], at(st), self.step_len(cur, 1), 0.3 + 0.5 * st / steps)
+                        nxt_bar = self.s(cur + 1)
+                        place(self.layers["drums"], nxt_bar - int(bar["len"] * SR), reverse_crash(rng, int(bar["len"] * SR), level=0.28))
                     if last and P.get("fill"):
                         for k, st in enumerate((steps - 4, steps - 3, steps - 2, steps - 1)):
                             place(self.layers["drums"], at(st), snd["snare"] * (0.3 + 0.2 * k) * dl)
@@ -637,11 +657,16 @@ class Track:
                 # Acid
                 if P.get("acid"):
                     lvl, cut = P["acid"], P.get("acid_cut", 380.0)
+                    if P.get("acid_open"):
+                        cut = cut * (1.0 + 1.4 * (b / max(1, sec["bars"] - 1)) ** 1.5)
                     prev = None
                     seqs = (((0, 0, True, False), (3, 0, False, False), (6, 12, False, True), (8, 0, True, False), (10, 7, False, False), (11, 10, False, True), (14, 0, False, False), (15, 12, False, False)),
                             ((0, 0, True, False), (2, 12, False, False), (6, 0, False, True), (8, 0, True, False), (11, 3, False, False), (12, 0, False, False), (14, 10, False, True)),
                             ((0, 0, True, False), (3, 7, False, False), (4, 0, False, False), (8, 12, True, True), (10, 0, False, False), (14, 5, False, False), (15, 0, False, False)))
                     seq = seqs[(b // 2) % 3] if b % 8 != 7 else seqs[1][:4]
+                    if P.get("acid_var"):
+                        seq = seqs[(b + b // 4) % 3] if b % 8 != 7 else seqs[2][:3]
+                        seq = [n_ for n_ in seq if rng.random() > 0.12]
                     for st, iv, acc, slide in seq:
                         m_ = bass_root + 12 + iv
                         place(self.layers["acid"], at(st), acid_note(rng, m_, self.step_len(cur, 1.3 if slide else 0.6), prev_midi=prev if slide else None,
@@ -688,6 +713,29 @@ class Track:
                     place(self.layers["choir"], bar_s, choir_chord(rng, [t_ + 12 for t_ in final[:4]], int(7.0 * SR), level=0.18, vowel="oo", attack=1.5, release=5.0))
                     for t_ in final[:4]:
                         self.ev("Choir", t_ + 12, bar_s, int(7.0 * SR), 0.8)
+                n_bar = int(bar["len"] * SR)
+                if "sweep_up" in fx and b == max(0, sec["bars"] - 4):
+                    place(self.layers["trance"], bar_s, noise_sweep(rng, int(sum(x["len"] for x in self.bars[cur:cur + 4]) * SR), up=True, level=0.15))
+                if "downlifter" in fx and b == 0:
+                    place(self.layers["trance"], bar_s, noise_sweep(rng, int(sum(x["len"] for x in self.bars[cur:cur + 2]) * SR), up=False, level=0.12))
+                if "impact" in fx and b == 0:
+                    place(self.layers["drums"], bar_s, impact(rng, level=0.5))
+                if "reverse" in fx and b == 0:
+                    place(self.layers["drums"], bar_s - n_bar, reverse_crash(rng, n_bar, level=0.3))
+                if "siren" in fx and b == max(0, sec["bars"] - 4):
+                    place(self.layers["trance"], bar_s, siren(rng, root + 24, int(sum(x["len"] for x in self.bars[cur:cur + 4]) * SR), level=0.07))
+                if "throw" in fx and last:
+                    thrown = house_stab(rng, [t_ + 12 for t_ in tones[:4]], self.step_len(cur, 1.2), level=0.22, cutoff=1800.0)
+                    place(self.layers["stab"], at(0), delay(thrown, self.beat_len(cur) * 0.75, feedback=0.55, taps=8, mix=0.6))
+                if "hp_build" in fx and b == max(0, sec["bars"] - 8):
+                    self.autom.append((bar_s, self.s(cur + min(8, sec["bars"])), "hp", None))
+                if "lp_drop" in fx and b == max(0, sec["bars"] - 4):
+                    self.autom.append((bar_s, self.s(cur + min(4, sec["bars"])), "lp", None))
+                if "cut" in fx and last:
+                    half = int(self.beat_len(cur) * 0.5 * SR)
+                    self.autom.append((self.s(cur + 1) - half, self.s(cur + 1), "cut", None))
+                if "gate" in fx and last:
+                    self.autom.append((bar_s, self.s(cur + 1), "gate", self.step_len(cur, 1)))
                 if "stop_note" in fx and b == 0:
                     place(self.layers["flute"], bar_s, flute(rng, root + 19, int(bar["len"] * SR * 1.8), level=0.28, pan=0.0))
                     self.ev("Flute", root + 19, bar_s, int(bar["len"] * SR * 1.8), 0.8)
@@ -777,6 +825,31 @@ class Track:
         mixv[:fade_in] *= np.linspace(0, 1, fade_in)[:, None]
         tail = int(6.0 * SR)
         mixv[-tail:] *= np.linspace(1, 0, tail)[:, None] ** 1.2
+        for a0, a1, kind, prm in self.autom:
+            a0, a1 = max(0, int(a0)), min(self.n, int(a1))
+            if a1 - a0 < 100:
+                continue
+            seg = mixv[a0:a1]
+            t = np.linspace(0.0, 1.0, a1 - a0)
+            if kind == "hp":      # Hochpass faehrt vor dem Drop hoch: das Fundament verschwindet
+                mixv[a0:a1] = sweep_filter(seg, 30.0 * (1400.0 / 30.0) ** (t ** 1.6), "high")
+            elif kind == "lp":    # Tiefpass schliesst sich
+                mixv[a0:a1] = sweep_filter(seg, 14000.0 * (350.0 / 14000.0) ** (t ** 1.2), "low")
+            elif kind == "cut":   # kurze Stille vor der Eins
+                fade = int(0.004 * SR)
+                g = np.zeros(a1 - a0)
+                g[:fade] = np.linspace(1, 0, fade)
+                mixv[a0:a1] = seg * g[:, None]
+            elif kind == "gate":  # Stotter-Gate im 16tel-Raster
+                step = max(1, int(prm))
+                g = np.ones(a1 - a0)
+                for i in range(0, a1 - a0, step):
+                    on = int(step * 0.45)
+                    g[i + on:i + step] = 0.0
+                    k = min(on, 60, len(g) - i)
+                    if k > 1:
+                        g[i:i + k] *= np.linspace(0, 1, k)
+                mixv[a0:a1] = seg * g[:, None]
         return master_chain(mixv) * 0.85  # Hintergrundmusik: etwas Luft lassen
 
 

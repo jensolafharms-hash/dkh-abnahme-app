@@ -1234,3 +1234,65 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# --------------------------------------------------------------------------- #
+# Techno-Effekte
+# --------------------------------------------------------------------------- #
+def sweep_filter(x, cuts, btype="low", block=512):
+    """Butterworth 2. Ordnung mit zeitveraenderlichem Cutoff auf Stereo-Material (blockweise, Zustand bleibt)."""
+    y = np.empty_like(x)
+    zi = None
+    for i in range(0, len(x), block):
+        c = float(np.clip(cuts[min(i, len(cuts) - 1)], 25.0, SR * 0.45))
+        sos = signal.butter(2, c, btype, fs=SR, output="sos")
+        if zi is None:
+            zi = np.zeros((sos.shape[0], 2, x.shape[1]))
+        y[i:i + block], zi = signal.sosfilt(sos, x[i:i + block], axis=0, zi=zi)
+    return y
+
+
+def noise_sweep(rng, n, up=True, level=0.16, lo=300.0, hi=9000.0):
+    """Rauschen mit Bandpass-Sweep (auf: Riser, ab: Downlifter), stereo verbreitert."""
+    t = np.linspace(0.0, 1.0, n)
+    curve = lo * (hi / lo) ** (t if up else 1.0 - t)
+    out = np.zeros((n, 2))
+    for ch, seed in enumerate((0.0, 0.37)):
+        noise = rng.standard_normal(n)
+        y = reso_lowpass_sweep(noise, curve * (1.0 + 0.15 * seed), 3.0, block=256)
+        y = highpass(y, 150.0)
+        env = (t ** 2.0) if up else ((1.0 - t) ** 1.6)
+        out[:, ch] = y * env
+    out[-int(0.01 * SR):] *= np.linspace(1, 0, int(0.01 * SR))[:, None]
+    return out * level
+
+
+def impact(rng, level=0.5):
+    """Tiefer Boom mit Rauschklick: Einschlag auf der Eins."""
+    n = int(2.2 * SR)
+    t = np.arange(n) / SR
+    f = 42.0 + 90.0 * np.exp(-t * 18.0)
+    boom = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 2.8)
+    hit = bandpass(rng.standard_normal(n), 800.0, 6000.0) * np.exp(-t * 40.0) * 0.6
+    tail = lowpass(rng.standard_normal(n), 1800.0) * np.exp(-t * 3.5) * 0.12
+    x = soft_clip(boom * 1.4 + hit + tail, 1.6)
+    return to_stereo(x * level, 0.0)
+
+
+def reverse_crash(rng, n, level=0.3):
+    """Rueckwaerts-Becken, das genau auf dem Zielschlag endet."""
+    t = np.arange(n) / SR
+    x = bandpass(rng.standard_normal(n), 2000.0, 12000.0) * np.exp(-t * (4.0 * SR / max(n, 1)) * 0.9)
+    x = x[::-1] * np.linspace(0.2, 1.0, n) ** 2
+    x[-int(0.004 * SR):] *= np.linspace(1, 0, int(0.004 * SR))
+    return to_stereo(x * level, 0.0)
+
+
+def siren(rng, midi_from, n, level=0.08, octaves=1.0):
+    """Sinus-Riser: Tonhoehe steigt ueber die Laenge um octaves Oktaven, mit Vibrato und Echo."""
+    t = np.arange(n) / SR
+    f0 = float(midi_to_hz(midi_from))
+    f = f0 * 2.0 ** (octaves * (t / t[-1]) ** 1.5) * (1.0 + 0.012 * np.sin(2 * np.pi * 5.5 * t))
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * (0.3 + 0.7 * (t / t[-1]) ** 2)
+    x += 0.3 * np.sin(2 * np.pi * 2 * np.cumsum(f) / SR) * (t / t[-1]) ** 3
+    x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR))
+    return delay(to_stereo(x * level, 0.0), 0.28, feedback=0.4, taps=4, mix=0.4)

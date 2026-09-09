@@ -28,8 +28,11 @@ from album import S, mel, SR, Track, write_midi, apply_defaults  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out", "mix")
 PARTS = os.path.join(OUT, "parts")
+MIX_NAME = "Sounds-of-Marbella-2026-Continuous-Mix"
 TITLE = "Sounds of Marbella 2026 – Continuous Mix"
 
+TECHNO_BPM = {1: (126, 128), 2: (128, 128), 3: (128, 130), 4: (130, 130), 5: (130, 130), 6: (130, 132),
+              7: (132, 132), 8: (132, 132), 9: (132, 132), 10: (132, 134)}
 BEAT_IN = dict(drums="house", drum_level=0.85, hats="offbeat", bass="house", bass_inst="pluck", bass_level=0.9, sub=0.55,
                comping="strum", comp_level=0.12, pad=800, pad_level=0.5, perc=["shaker"], perc_level=0.7, dyn=0.86)
 DROP = {"end", "outro", "outro1", "outro2", "after2", "fade2", "embers", "stop", "coda"}
@@ -71,7 +74,8 @@ def stretch(spec, target_s):
         dur = album.track_duration(spec) - 10.0
         if dur >= target_s:
             break
-        cands = [s for s in spec["sections"] if any(k in s["name"] for k in EXTEND) and s["name"] not in ("mix_in", "mix_out")]
+        cands = [s for s in spec["sections"] if any(k in s["name"] for k in EXTEND) and s["name"] not in ("mix_in", "mix_out")
+                 and not s["name"].endswith(("_bd", "_drop"))]
         if not cands:
             break
         cands.sort(key=lambda s: s["bars"])
@@ -94,10 +98,104 @@ def club_tweaks(spec):
     return spec
 
 
+def retempo(spec, bpm, bpm_next):
+    """Setzt alle Abschnitte auf ein Tempo; der letzte Groove-Abschnitt zieht zum Folgetempo an."""
+    secs = spec["sections"]
+    for s in secs:
+        s["bpm"], s["bpm_end"] = bpm, None
+    body = [s for s in secs if s["name"] != "mix_out"]
+    if body:
+        body[-1]["bpm_end"] = bpm_next
+    for s in secs:
+        if s["name"] == "mix_out":
+            s["bpm"] = bpm_next
+    return spec
+
+
+PEAKS = ("peak", "chorus", "refrain", "climax", "sun", "trance", "dance", "lift", "estribillo", "call", "glow")
+
+
+def techno_tweaks(spec):
+    """Techno-Fassung: Four-on-the-floor, 16tel-Hats, rollender Synth-Bass, mehr Acid und Stabs."""
+    spec["kick_punch"] = 1.45
+    spec["duck"] = 0.72
+    spec["bass_boost"] = max(spec.get("bass_boost", 0.62), 0.85)
+    for s in spec["sections"]:
+        P = s["parts"]
+        name = s["name"]
+        if P.get("drums") and P["drums"] != "kickonly":
+            P["drums"] = "techno"
+            P["drum_level"] = max(P.get("drum_level", 0.9), 0.95)
+            P["hats"] = "techno16" if any(k in name for k in PEAKS) or name in ("mix_in", "mix_out") else "techno_off"
+            P["hats_alt"] = "full" if P["hats"] == "techno16" else "techno16"
+        if P.get("bass") and P["bass"] != "one":
+            P["bass"] = "techno"
+            P["bass_inst"] = "synth"
+            P["bass_level"] = max(P.get("bass_level", 0.8), 0.95)
+            P.setdefault("bass_cut", 520.0)
+            P.setdefault("bass_drive", 1.9)
+            P["sub"] = max(P.get("sub", 0.0), 0.55)
+        if P.get("drums") and s["bars"] >= 8:
+            P["acid"] = max(P.get("acid", 0.0), 0.16 if any(k in name for k in PEAKS) else 0.12)
+            P.setdefault("acid_cut", 360.0)
+        if any(k in name for k in PEAKS) and P.get("drums"):
+            P.setdefault("stabs", "dub")
+            P.setdefault("stab_steps", (2, 10))
+            P.setdefault("stab_level", 0.12)
+        if P.get("comping"):
+            P["comp_level"] = P.get("comp_level", 0.18) * 0.7
+        for m in P.get("melody", []):
+            m["level"] *= 0.9
+        if P.get("drums") == "techno":
+            P.update(hat_var=True, acid_var=True, acid_open=True, kick_out=True)
+    return spec
+
+
+def techno_structure(spec):
+    """Lange Groove-Teile -> Aufbau, (Breakdown), Drop. Weniger Schleife, mehr Dramaturgie. Nach stretch() aufrufen."""
+    new = []
+    for s in spec["sections"]:
+        P = s["parts"]
+        if P.get("drums") == "techno" and s["bars"] >= 24 and s["name"] not in ("mix_in", "mix_out"):
+            n_bd = 4 if s["bars"] >= 40 else 0
+            main = copy.deepcopy(s)
+            main["bars"] = s["bars"] - 8 - n_bd
+            main["parts"]["fx"] = sorted(set(main["parts"].get("fx", [])) | {"sweep_up", "hp_build", "roll"} | ({"cut"} if not n_bd else set()))
+            main["parts"]["fill"] = True
+            new.append(main)
+            if n_bd:
+                bd = copy.deepcopy(s)
+                bd["name"] = s["name"] + "_bd"
+                bd["bars"] = n_bd
+                bd["dyn"] = min(s["dyn"], 0.8)
+                bp = bd["parts"]
+                for k in ("drums", "hats", "hats_alt", "perc", "stabs", "ride", "fill", "kick_out"):
+                    bp.pop(k, None)
+                bp.update(bass="one", bass_level=0.7, sub=0.4, acid=max(bp.get("acid", 0.12), 0.18), acid_cut=300.0,
+                          acid_open=True, fx=["riser", "siren", "cut", "gate"])
+                new.append(bd)
+            drop = copy.deepcopy(s)
+            drop["name"] = s["name"] + "_drop"
+            drop["bars"] = 8
+            drop["dyn"] = min(1.0, s["dyn"] + 0.06)
+            dp = drop["parts"]
+            dp.update(hats="techno16", hats_alt="full", drum_level=1.0, fx=["impact", "crash", "downlifter", "throw"], fill=True)
+            dp.setdefault("stabs", "dub")
+            dp.setdefault("stab_steps", (2, 10))
+            dp["stab_level"] = max(dp.get("stab_level", 0.12), 0.14)
+            new.append(drop)
+        else:
+            if P.get("drums") == "techno" and s["bars"] >= 16 and s["name"] not in ("mix_in", "mix_out"):
+                P["fx"] = sorted(set(P.get("fx", [])) | {"sweep_up", "roll", "crash"})
+            new.append(s)
+    spec["sections"] = new
+    return spec
+
+
 # --------------------------------------------------------------------------- #
 # Die zehn Teile des Mixes
 # --------------------------------------------------------------------------- #
-def build_plan():
+def build_plan(techno=False):
     plan = []
 
     t = by_nr(1)                                   # Playa: Opener, eigenes Intro bleibt
@@ -191,6 +289,14 @@ def build_plan():
         S("lantern", 24, bpm=80, dyn=0.6, pad=550, choir="oo", choir_level=0.1, choir_every=2, fx=["bell"], bell_motif=[(0, 0), (8, 7)],
           melody=[mel("motif", "guitar", 0.32, legato=1.5, humanize=0.02)], atmos=dict(crickets=0.6)),
     ]
+    if techno:                                     # Techno: Farola als Kick-Breakdown, der Beat laeuft durch
+        f["sections"] = [
+            S("mix_in", 8, bpm=132, **BEAT_IN),
+            S("lantern", 16, bpm=132, dyn=0.7, drums="kickonly", drum_level=0.8, bass="one", bass_level=0.7, sub=0.45, pad=550,
+              choir="oo", choir_level=0.1, choir_every=2, fx=["bell", "riser"], bell_motif=[(0, 0), (8, 7)],
+              melody=[mel("motif", "guitar", 0.32, legato=1.5, humanize=0.02)], atmos=dict(crickets=0.4)),
+            S("mix_out", 8, bpm=132, fill=True, **BEAT_IN),
+        ]
     plan.append((f, 80))
 
     t = by_nr(10)                                  # Finale: Beat ab dem ersten Takt, Aufbau bis zum Schluss
@@ -216,8 +322,13 @@ def build_plan():
         if len(secs) > 2 and secs[0]["name"] == "mix_in" and not secs[1]["parts"].get("drums") and secs[1]["bars"] <= 8:
             del secs[1]
         club_tweaks(spec)
-        if spec["nr"] not in (9,):
+        if techno:
+            retempo(spec, *TECHNO_BPM[spec["nr"]])
+            techno_tweaks(spec)
+        if spec["nr"] not in (9,) or techno:
             stretch(spec, target)
+        if techno:
+            techno_structure(spec)
         out.append(spec)
     return out
 
@@ -309,7 +420,7 @@ def _match_level(seg, ref, window, max_gain=2.0):
 
 def assemble(metas):
     os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, "Sounds-of-Marbella-2026-Continuous-Mix.wav")
+    path = os.path.join(OUT, MIX_NAME + ".wav")
     writer = sf.SoundFile(path, "w", SR, 2, subtype="PCM_16")
     chapters = []
     pos = 0            # Startposition des aktuellen Teils im Mix
@@ -383,7 +494,14 @@ def main():
     ap.add_argument("--assemble", action="store_true")
     ap.add_argument("--only", type=int, default=None, help="nur Teil-Index rendern (1..10)")
     ap.add_argument("--remaster", action="store_true", help="vorhandene *-pre.wav neu mastern, ohne Render")
+    ap.add_argument("--techno", action="store_true", help="Techno-Fassung (126-134 BPM) nach out/mix-techno/")
     args = ap.parse_args()
+    global OUT, PARTS, MIX_NAME
+    if args.techno:
+        OUT = os.path.join(HERE, "out", "mix-techno")
+        PARTS = os.path.join(OUT, "parts")
+        MIX_NAME = "Sounds-of-Marbella-2026-Techno-Mix"
+        sf_render.SF_MAP = {k: v for k, v in sf_render.SF_MAP.items() if k != "Bass"}   # Synth-Bass bleibt synthetisch
     if args.remaster:
         for i in range(1, 11):
             pre_path = os.path.join(PARTS, f"{i:02d}-pre.wav")
@@ -395,7 +513,10 @@ def main():
             sf.write(os.path.join(PARTS, f"{i:02d}.wav"), np.clip(x[: meta["n"]], -1, 1).astype(np.float32), SR, subtype="PCM_16")
             print(f"  Teil {i} neu gemastert", flush=True)
         args.assemble = True
-    plan = build_plan()
+    plan = build_plan(techno=args.techno)
+    if args.techno:
+        for spec in plan:
+            spec["title"] = spec["title"].split(" (")[0]
     for i, spec in enumerate(plan, 1):
         d = album.track_duration(spec) - 10
         print(f"  {i:2d}. {spec['title']:45s} {int(d // 60)}:{int(d % 60):02d}", flush=True)

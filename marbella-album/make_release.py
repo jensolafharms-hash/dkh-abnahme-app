@@ -55,6 +55,12 @@ def main():
                  "Die Cue-Datei in ein Brennprogramm laden (z. B. ImgBurn, CDBurnerXP, Burn auf dem Mac, K3b) und als Audio-CD\n"
                  "brennen. Titel, Interpret und Albumname werden als CD-Text mitgeschrieben. Gesamtspielzeit 36:03,\n"
                  "passt auf eine 74- oder 80-Minuten-CD-R.\n")
+    import io
+    from PIL import Image
+    _im = Image.open(os.path.join(HERE, "cover", "front-1400.jpg")).resize((600, 600), Image.LANCZOS)
+    _buf = io.BytesIO()
+    _im.save(_buf, "JPEG", quality=82)
+    small_cover = _buf.getvalue()
     for name, kbps in (("Sounds-of-Marbella-2026-MP3.zip", 0), ("Sounds-of-Marbella-2026-WhatsApp.zip", 96), ("Sounds-of-Marbella-2026-E-Mail.zip", 64)):
         zpath = os.path.join(OUT, name)
         folder = ALBUM
@@ -72,9 +78,9 @@ def main():
                     enc.set_channels(2)
                     enc.set_quality(2)
                     data = enc.encode(bytes(d.samples)) + enc.flush()
-                    # ID3-Tag der Originaldatei übernehmen
-                    raw = open(path, "rb").read()
-                    tag = raw[: 10 + ((raw[6] << 21) | (raw[7] << 14) | (raw[8] << 7) | raw[9])] if raw[:3] == b"ID3" else b""
+                    # Tag neu schreiben, mit kleinem Cover (spart je Datei rund 200 KB)
+                    from tag_mp3 import id3_tag
+                    tag = id3_tag(tr["title"], ARTIST, ALBUM, tl["tracks"].index(tr) + 1, len(tl["tracks"]), 2026, small_cover)
                     z.writestr(f"{folder}/{tr['file']}", tag + data)
                 else:
                     z.write(path, f"{folder}/{tr['file']}")

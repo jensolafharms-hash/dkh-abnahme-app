@@ -23,7 +23,7 @@ def _text(fid, text):
     return _frame(fid, b"\x01" + text.encode("utf-16"))  # UTF-16 mit BOM
 
 
-def id3_tag(title, artist, album, track, total, year, cover_bytes=None, genre="House"):
+def id3_tag(title, artist, album, track, total, year, cover_bytes=None, genre="Chill House"):
     frames = b"".join([
         _text("TIT2", title), _text("TPE1", artist), _text("TPE2", artist), _text("TALB", album),
         _text("TRCK", f"{track}/{total}"), _text("TYER", str(year)), _text("TCON", genre),

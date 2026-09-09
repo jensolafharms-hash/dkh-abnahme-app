@@ -303,9 +303,9 @@ def track_data():
     rows = []
     total = 0.0
     # Auf dem Cover nur die Musikrichtungen als Aufzählung, keine Instrumente, keine Tonarten
-    style_on_cover = {1: "House, Acid, Chill", 2: "Deep House", 3: "Flamenco Chill, Bulería", 4: "Zwischenspiel",
-                      5: "Chill, Tribal", 6: "Deep House, Trance", 7: "Ballade, 6/8", 8: "Shuffle House, Dub",
-                      9: "Zwischenspiel", 10: "Chill, Sunrise"}
+    style_on_cover = {1: "House, Acid, Chill", 2: "Deep House", 3: "Flamenco Chill, Bulería", 4: "Interlude",
+                      5: "Chill, Tribal", 6: "Deep House, Trance", 7: "Ballad, 6/8", 8: "Shuffle House, Dub",
+                      9: "Interlude", 10: "Chill, Sunrise"}
     for spec in al.TRACKS:
         dur = al.track_duration(spec)
         total += dur
@@ -398,7 +398,7 @@ def draw_tracklist(d, x0, x1, y, rows, total, fnt_nr, fnt_t, fnt_m, line_h, fill
     y += int(line_h * 0.2)
     d.line((x0, y, x1, y), fill=dim, width=max(1, int(line_h * 0.03)))
     y += int(line_h * 0.35)
-    s = f"Gesamtspielzeit  {fmt(total)}"
+    s = f"Total time  {fmt(total)}"
     w, h, l, t = text_size(fnt_t, s)
     d.text((x1 - w - l, y), s, font=fnt_t, fill=fill)
     return y + int(line_h * 1.4)
@@ -414,11 +414,11 @@ def dark_panel(img, box, alpha=215, radius=40):
 
 def impressum_lines():
     return [
-        "Alle Titel komponiert, arrangiert, produziert und gemischt von DJ Jensi.",
+        "All titles written, arranged, produced and mixed by DJ Jensi.",
         "",
-        f"Impressum:  {IMPRESSUM['Künstler']}  ·  {IMPRESSUM['Verantwortlich']}",
+        f"Released by {IMPRESSUM['Künstler']}  ·  {IMPRESSUM['Verantwortlich']}",
         "",
-        "℗ & © 2026 DJ Jensi  ·  Sounds of Marbella 2026",
+        "℗ & © 2026 DJ Jensi  ·  Sounds of Marbella 2026  ·  All rights reserved.",
     ]
 
 

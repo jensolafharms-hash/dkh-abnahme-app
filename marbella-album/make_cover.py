@@ -302,10 +302,14 @@ def center_text(d, img_w, y, s, fnt, fill, spacing=0):
 def track_data():
     rows = []
     total = 0.0
+    # Auf dem Cover nur die Musikrichtung, keine Instrumente
+    style_on_cover = {2: "Deep House", 5: "Chill, tribal", 10: "Chill, Sunrise"}
     for spec in al.TRACKS:
         dur = al.track_duration(spec)
         total += dur
-        rows.append(dict(nr=int(spec["nr"]), title=spec["title"], bpm=spec["style"], key=spec["mode"], dur=dur, interlude=False))
+        style = style_on_cover.get(int(spec["nr"]), spec["style"])
+        key = spec["mode"].replace(" (por medio)", "")
+        rows.append(dict(nr=int(spec["nr"]), title=spec["title"], bpm=style, key=key, dur=dur, interlude=False))
     return rows, total
 
 

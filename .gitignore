@@ -15,3 +15,7 @@ marbella-album/out/master/
 marbella-album/out/*.wav
 marbella-album/out/*-WhatsApp.zip
 marbella-album/out/*-E-Mail.zip
+marbella-album/out/mix/parts/
+marbella-album/out/mix/*.wav
+marbella-album/out/mix/*.flac
+marbella-album/out/mix/Sounds-of-Marbella-2026-Continuous-Mix.mp3

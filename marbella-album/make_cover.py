@@ -210,11 +210,21 @@ PHOTO_FRONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover", 
 PHOTO_BACK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover", "photo-back.jpg")
 
 
+PHOTO_ROTATE = 1.0   # Grad gegen den Uhrzeigersinn, damit die Uferlinie waagerecht liegt
+
+
 def load_photo(path, w, h, darken=0.0, blur=0.0):
-    """Foto laden, auf w x h beschneiden (Bildmitte), optional abdunkeln und weichzeichnen."""
+    """Foto laden, gerade drehen, auf w x h beschneiden (Bildmitte), optional abdunkeln und weichzeichnen."""
     if not os.path.exists(path):
         return None
     im = Image.open(path).convert("RGB")
+    if PHOTO_ROTATE:
+        im = im.rotate(PHOTO_ROTATE, resample=Image.BICUBIC, expand=False)
+        # Ränder, die durch die Drehung leer werden, wegschneiden
+        r = math.radians(abs(PHOTO_ROTATE))
+        cut_x = int(math.ceil(im.height * math.sin(r))) + 2
+        cut_y = int(math.ceil(im.width * math.sin(r))) + 2
+        im = im.crop((cut_x, cut_y, im.width - cut_x, im.height - cut_y))
     scale = max(w / im.width, h / im.height)
     im = im.resize((max(w, int(im.width * scale + 0.5)), max(h, int(im.height * scale + 0.5))), Image.LANCZOS)
     left, top = (im.width - w) // 2, (im.height - h) // 2
@@ -309,17 +319,19 @@ def fmt(sec):
 def make_front(S=3000):
     photo = load_photo(PHOTO_FRONT, S, S)
     if photo is not None:
-        img = overlay_gradient(photo, 0.5, 0.55)
-        img = vignette(img, 0.3)
-        draw_artist_mirrored_j(img, S // 2, int(S * 0.115), int(S * 0.115))
+        img = overlay_gradient(photo, 0.35, 0.78)
+        img = vignette(img, 0.25)
+        # Name oben in der freien Himmelsfläche zwischen den Palmenkronen
+        draw_artist_mirrored_j(img, S // 2, int(S * 0.05), int(S * 0.095))
         d = ImageDraw.Draw(img)
-        y = int(S * 0.265)
-        center_text(d, S, y, TITLE_A.upper(), font(F_SANS_L, S * 0.036), (255, 240, 225), spacing=int(S * 0.012))
-        y += int(S * 0.055)
-        center_text(d, S, y, TITLE_B.upper(), font(F_SANS_B, S * 0.105), (255, 250, 240), spacing=int(S * 0.010))
-        y += int(S * 0.135)
-        center_text(d, S, y, YEAR, font(F_SANS_B, S * 0.060), (255, 236, 200), spacing=int(S * 0.02))
-        center_text(d, S, int(S * 0.935), TAGLINE.upper(), font(F_SANS, S * 0.020), (225, 215, 230), spacing=int(S * 0.004))
+        # Titelblock unten über dem Wasser: Berg und Palmen bleiben frei
+        y = int(S * 0.69)
+        center_text(d, S, y, TITLE_A.upper(), font(F_SANS_L, S * 0.034), (255, 240, 225), spacing=int(S * 0.012))
+        y += int(S * 0.05)
+        center_text(d, S, y, TITLE_B.upper(), font(F_SANS_B, S * 0.1), (255, 250, 240), spacing=int(S * 0.010))
+        y += int(S * 0.128)
+        center_text(d, S, y, YEAR, font(F_SANS_B, S * 0.055), (255, 236, 200), spacing=int(S * 0.02))
+        center_text(d, S, int(S * 0.955), TAGLINE.upper(), font(F_SANS, S * 0.017), (215, 205, 225), spacing=int(S * 0.004))
         return img
     img = gradient(S, S, [
         (0.00, (24, 16, 64)),

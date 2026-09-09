@@ -702,35 +702,65 @@ class Track:
                 duck[kt:end] = np.minimum(duck[kt:end], curve[: end - kt])
         d = np.clip(lowpass(duck, 60.0), 0.35, 1.0)[:, None]
 
-        pad = reverb(chorus_widen(L["pad"], rng), ir_long, 0.75) * d   # weit hinten
-        if hasattr(self, "wave_env") and P_all.get("pad_breathes", False):
-            pad *= (0.6 + 0.4 * self.wave_env)[:, None]
-        choir = reverb(chorus_widen(L["choir"], rng, 6.0, 0.18), ir_huge, 0.7)
-        lead_l = reverb(delay(L["lead"], self.beat_len(0) * 1.5, 0.42, 6, 2600.0, True, 0.3), ir_long, 0.42)
-        guitar = reverb(delay(L["guitar"], self.beat_len(0) * 0.75, 0.22, 2, 3200.0, False, 0.1), ir_room, 0.22)  # vorn, trocken
-        brass = reverb(delay(L["brass"], self.beat_len(0) * (1.5 if dub else 0.75), 0.55 if dub else 0.3, 7 if dub else 3, 2400.0, True, 0.45 if dub else 0.2),
-                       ir_huge if dub else ir_long, 0.45 if dub else 0.38)
-        flute_l = reverb(delay(L["flute"], self.beat_len(0) * 1.5, 0.35, 4, 3000.0, True, 0.22), ir_long, 0.42)
-        steel = reverb(delay(L["steel"], self.beat_len(0) * 0.75, 0.3, 3, 3500.0, True, 0.2), ir_long, 0.35) * (0.6 + 0.4 * d)
-        bell_l = reverb(delay(L["bell"], self.beat_len(0) * 1.5, 0.4, 5, 3000.0, True, 0.3), ir_huge, 0.6)
-        perc = reverb(L["perc"], ir_room, 0.16)
-        drums = reverb(L["drums"], ir_room, 0.06)
-        bass = L["bass"] * (0.6 + 0.4 * d) * P_all.get("bass_boost", 1.0)
-        acid = reverb(delay(L["acid"], self.beat_len(0) * 0.75, 0.3, 3, 2400.0, True, 0.18), ir_room, 0.16) * (0.7 + 0.3 * d)
-        trance = reverb(delay(L["trance"], self.beat_len(0) * 0.75, 0.4, 5, 3200.0, True, 0.3), ir_long, 0.5) * d
-        stab = reverb(delay(L["stab"], self.beat_len(0) * P_all.get("stab_delay", 1.5), P_all.get("stab_fb", 0.35), 6 if P_all.get("stab_fb", 0.35) > 0.4 else 4, 2600.0, True, 0.3), ir_long, 0.3) * d
-        atmos = L["atmos"]
+        gains = dict(drums=1.0, perc=1.25, bass=1.0, pad=1.0, lead=1.05, guitar=2.4, brass=1.65, flute=1.75, steel=1.5,
+                     atmos=1.8, acid=1.3, stab=1.5, trance=1.1, choir=1.05, bell=1.3)
+        bl = self.beat_len(0)
 
-        # Akustische Stimmen vorn, Synthesizer-Flächen hinten
-        parts = dict(drums=drums * 1.0, perc=perc * 1.25, bass=bass * 1.0, pad=pad * 1.0, lead=lead_l * 1.05,
-                     guitar=guitar * 2.4, brass=brass * 1.65, flute=flute_l * 1.75, steel=steel * 1.5, atmos=atmos * 1.8,
-                     acid=acid * 1.3, stab=stab * 1.5, trance=trance * 1.1, choir=choir * 1.05, bell=bell_l * 1.3)
-        if os.environ.get("ALBUM_DEBUG"):
-            for k, v in parts.items():
-                r = np.sqrt(np.mean(v ** 2)) + 1e-9
-                print(f"      {k:7s} {20*np.log10(r):6.1f} dBFS", file=sys.stderr)
+        def process(key):
+            x = L[key]
+            if key == "pad":
+                y = reverb(chorus_widen(x, rng), ir_long, 0.75) * d
+                if hasattr(self, "wave_env") and P_all.get("pad_breathes", False):
+                    y *= (0.6 + 0.4 * self.wave_env)[:, None]
+                return y
+            if key == "choir":
+                return reverb(chorus_widen(x, rng, 6.0, 0.18), ir_huge, 0.7)
+            if key == "lead":
+                return reverb(delay(x, bl * 1.5, 0.42, 6, 2600.0, True, 0.3), ir_long, 0.42)
+            if key == "guitar":
+                return reverb(delay(x, bl * 0.75, 0.22, 2, 3200.0, False, 0.1), ir_room, 0.22)
+            if key == "brass":
+                return reverb(delay(x, bl * (1.5 if dub else 0.75), 0.55 if dub else 0.3, 7 if dub else 3, 2400.0, True, 0.45 if dub else 0.2),
+                              ir_huge if dub else ir_long, 0.45 if dub else 0.38)
+            if key == "flute":
+                return reverb(delay(x, bl * 1.5, 0.35, 4, 3000.0, True, 0.22), ir_long, 0.42)
+            if key == "steel":
+                return reverb(delay(x, bl * 0.75, 0.3, 3, 3500.0, True, 0.2), ir_long, 0.35) * (0.6 + 0.4 * d)
+            if key == "bell":
+                return reverb(delay(x, bl * 1.5, 0.4, 5, 3000.0, True, 0.3), ir_huge, 0.6)
+            if key == "perc":
+                return reverb(x, ir_room, 0.16)
+            if key == "drums":
+                return reverb(x, ir_room, 0.06)
+            if key == "bass":
+                return x * (0.6 + 0.4 * d) * P_all.get("bass_boost", 1.0)
+            if key == "acid":
+                return reverb(delay(x, bl * 0.75, 0.3, 3, 2400.0, True, 0.18), ir_room, 0.16) * (0.7 + 0.3 * d)
+            if key == "trance":
+                return reverb(delay(x, bl * 0.75, 0.4, 5, 3200.0, True, 0.3), ir_long, 0.5) * d
+            if key == "stab":
+                return reverb(delay(x, bl * P_all.get("stab_delay", 1.5), P_all.get("stab_fb", 0.35), 6 if P_all.get("stab_fb", 0.35) > 0.4 else 4, 2600.0, True, 0.3), ir_long, 0.3) * d
+            return x
+
+        # Spur für Spur bearbeiten und sofort aufsummieren (Speicher!)
+        keep = getattr(self, "keep_parts", False)
+        parts = {}
+        mixv = np.zeros((self.n, 2))
+        for key in list(L.keys()):
+            if np.abs(L[key]).max() < 1e-6:
+                L[key] = None
+                continue
+            y = process(key) * gains[key]
+            mixv += y
+            if os.environ.get("ALBUM_DEBUG"):
+                r = np.sqrt(np.mean(y ** 2)) + 1e-9
+                print(f"      {key:7s} {20*np.log10(r):6.1f} dBFS", file=sys.stderr)
+            if keep:
+                parts[key] = y
+            else:
+                del y
+            L[key] = None
         self.parts = parts
-        mixv = sum(parts.values())
         mixv = highpass(mixv, 28.0)
         mixv *= self.dyn_curve[:, None]
         fade_in = int(0.4 * SR)
@@ -1217,6 +1247,7 @@ def main():
         if args.track is not None and spec["nr"] != args.track:
             continue
         tr = Track(spec)
+        tr.keep_parts = args.export
         print(f"[{spec['nr']}] {spec['title']}  ({spec['style']}, {spec['mode']}) ...", flush=True)
         if args.sf:
             import sf_render

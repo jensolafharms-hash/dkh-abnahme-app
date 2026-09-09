@@ -93,6 +93,23 @@ Crash, Glocke, Schlussakkord). Die Themen stehen als Notation daneben:
 Position, Halbton relativ zum Grundton, Dauer; je nach Taktart in Achteln
 oder in Zählzeiten des Compás.
 
+## Continuous Mix (55 bis 60 Minuten)
+
+```bash
+python3 mix.py             # rendert alle Teile (ca. 70 Minuten) und baut den Mix
+python3 mix.py --assemble  # nur zusammensetzen
+```
+
+`mix.py` baut aus der Album-Partitur eine durchgehend tanzbare Fassung:
+verlängerte Groove-Teile, Tempo 118 bis 124 BPM, Golden Mile Breeze als
+4/4-Rumba-House, Sierra Blanca Drift als Shuffle-House, Paseo mit Beat,
+Farola als einzige Atempause. Jeder Teil endet mit acht Takten Beat-Ausklang
+im Tempo des nächsten Teils und wird taktgenau überblendet (Bass des
+ausgehenden Teils wird dabei ausgefiltert). Club-Master mit Sub-Layer,
+kräftigerer Kick, Bass-Anhebung und Limiter. Ergebnis in `out/mix/`:
+WAV, FLAC, MP3 320 kbit/s und `chapters.txt` mit den Kapitelmarken für
+die YouTube-Beschreibung.
+
 ## Rechte
 
 - ℗ & © 2026 DJ Jensi (Jens Olaf Harms). Alle Rechte vorbehalten, siehe `LICENSE`.

@@ -97,6 +97,8 @@ oder in Zählzeiten des Compás.
 
 ```bash
 python3 mix.py             # rendert alle Teile (ca. 70 Minuten) und baut den Mix
+python3 mix.py --only 3    # nur einen Teil neu rendern
+python3 mix.py --remaster  # vorhandene ungemasterte Teile (NN-pre.wav) neu mastern und zusammensetzen
 python3 mix.py --assemble  # nur zusammensetzen
 ```
 
@@ -105,10 +107,14 @@ verlängerte Groove-Teile, Tempo 118 bis 124 BPM, Golden Mile Breeze als
 4/4-Rumba-House, Sierra Blanca Drift als Shuffle-House, Paseo mit Beat,
 Farola als einzige Atempause. Jeder Teil endet mit acht Takten Beat-Ausklang
 im Tempo des nächsten Teils und wird taktgenau überblendet (Bass des
-ausgehenden Teils wird dabei ausgefiltert). Club-Master mit Sub-Layer,
-kräftigerer Kick, Bass-Anhebung und Limiter. Ergebnis in `out/mix/`:
-WAV, FLAC, MP3 320 kbit/s und `chapters.txt` mit den Kapitelmarken für
-die YouTube-Beschreibung.
+ausgehenden Teils wird dabei ausgefiltert, Ein- und Ausstieg werden auf den
+Pegel des Grooves angehoben). Drumlose Intros entfallen im Mix. Der Sub ist
+ein sauberer Sinus in der Bass-Oktave (eigener Layer `sub`, kein
+SoundFont-Ersatz). Club-Master: Tiefbass unter 45 Hz abgesenkt, Punch bei
+60 bis 140 Hz, Buskompressor und Limiter mit Vorausschau (keine Sättigung).
+Ergebnis in `out/mix/`: WAV, FLAC, MP3 320 kbit/s, MP3 192 kbit/s (im Repo),
+MP3 64 kbit/s (WhatsApp) und `chapters.txt` mit den Kapitelmarken für die
+YouTube-Beschreibung.
 
 ## Rechte
 

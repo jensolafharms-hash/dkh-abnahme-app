@@ -93,13 +93,16 @@ Crash, Glocke, Schlussakkord). Die Themen stehen als Notation daneben:
 Position, Halbton relativ zum Grundton, Dauer; je nach Taktart in Achteln
 oder in Zählzeiten des Compás.
 
-## Rechtliche Einordnung (keine Rechtsberatung)
+## Rechte
 
-- Keine Samples, Loops, Presets, Melodien oder Songs Dritter. Alle Klänge
-  werden berechnet, alle Themen und Akkordfolgen sind hier notierte eigene
-  Kompositionen.
+- ℗ & © 2026 DJ Jensi (Jens Olaf Harms). Alle Rechte vorbehalten, siehe `LICENSE`.
+- Keine Samples, Loops oder Werke Dritter. Kompositionen und Arrangements
+  sind hier notiert; Instrumentenklänge aus der Klangbibliothek FluidR3_GM
+  (MIT-Lizenz), deren Nutzung in eigenen Produktionen frei ist.
 - Die Titel sind bei keiner Verwertungsgesellschaft angemeldet. Wegen der
-  GEMA-Vermutung sollte bei öffentlicher Wiedergabe der Nachweis der
-  GEMA-Freiheit vorliegen; dieses Repository mit Notation, Seeds und
-  Git-Historie ist dieser Nachweis.
-- Skript und gerenderte Audiodateien stehen unter **CC0 1.0** (siehe `LICENSE`).
+  GEMA-Vermutung dient dieses Repository mit Notation, Seeds und
+  Git-Historie als Nachweis der Urheberschaft und GEMA-Freiheit.
+- Für den Vertrieb: ISRC je Titel und UPC/EAN fürs Album vergibt der
+  Distributor; für eine physische CD müssen nach EU-Produktsicherheits-
+  verordnung Name, Postanschrift und E-Mail des Herstellers auf der
+  Verpackung stehen (Zeile auf der Rückseite, Anschrift in `make_cover.py`).

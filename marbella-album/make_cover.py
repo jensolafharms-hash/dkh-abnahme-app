@@ -31,6 +31,9 @@ TAGLINE = "Una noche de verano  ·  Flamenco Chill  ·  Deep House  ·  Trance"
 IMPRESSUM = {
     "Künstler": "DJ Jensi",
     "Verantwortlich": "Jens Olaf Harms",
+    # Pflichtangaben für den Verkauf einer physischen CD in der EU (Produktsicherheitsverordnung):
+    "Anschrift": "[Street No., ZIP City, Country]",
+    "Kontakt": "j.harms@comcentra.de",
 }
 
 FONT_DIR = "/usr/share/fonts/truetype"
@@ -416,9 +419,10 @@ def impressum_lines():
     return [
         "All titles written, arranged, produced and mixed by DJ Jensi.",
         "",
-        f"Released by {IMPRESSUM['Künstler']}  ·  {IMPRESSUM['Verantwortlich']}",
+        f"Released by {IMPRESSUM['Künstler']}  ·  Manufacturer: {IMPRESSUM['Verantwortlich']}, {IMPRESSUM['Anschrift']}, {IMPRESSUM['Kontakt']}",
         "",
         "℗ & © 2026 DJ Jensi  ·  Sounds of Marbella 2026  ·  All rights reserved.",
+        "Unauthorised copying, hiring, lending, public performance and broadcasting of this recording prohibited.",
     ]
 
 
@@ -455,7 +459,7 @@ def _back_text(img, S):
     fnt = font(F_SANS, S * 0.0135)
     y = max(y, int(S * 0.755))
     lines = impressum_lines()
-    img = dark_panel(img, (m, y - int(S * 0.02), S - m, y + int(S * 0.021) * len(lines) + int(S * 0.01)))
+    img = dark_panel(img, (m, y - int(S * 0.02), S - m, y + int(S * 0.021) * len(lines) + int(S * 0.012)))
     d = ImageDraw.Draw(img)
     for line in lines:
         if line:

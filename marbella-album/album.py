@@ -1241,7 +1241,7 @@ def main():
                               interlude=spec.get("interlude", False), duration_s=round(dur, 1), file=slug + ".mp3"))
     if args.track is None:
         with open(os.path.join(args.out, "tracklist.json"), "w", encoding="utf-8") as fh:
-            json.dump(dict(album=ALBUM_TITLE, artist=ALBUM_ARTIST, year=2026, license="CC0-1.0", tracks=tracklist), fh, ensure_ascii=False, indent=2)
+            json.dump(dict(album=ALBUM_TITLE, artist=ALBUM_ARTIST, year=2026, license="All rights reserved", tracks=tracklist), fh, ensure_ascii=False, indent=2)
     print("fertig:", args.out)
 
 

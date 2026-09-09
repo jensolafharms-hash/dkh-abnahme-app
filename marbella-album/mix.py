@@ -211,6 +211,10 @@ def build_plan():
 
     out = []
     for spec, target in plan:
+        # Drumlose 8-Takt-Intros direkt nach mix_in fallen im Mix weg: der Beat laeuft durch.
+        secs = spec["sections"]
+        if len(secs) > 2 and secs[0]["name"] == "mix_in" and not secs[1]["parts"].get("drums") and secs[1]["bars"] <= 8:
+            del secs[1]
         club_tweaks(spec)
         if spec["nr"] not in (9,):
             stretch(spec, target)
@@ -221,18 +225,43 @@ def build_plan():
 # --------------------------------------------------------------------------- #
 # Club-Master
 # --------------------------------------------------------------------------- #
+def limiter(x, ceiling=0.95, lookahead_ms=2.0, release_ms=120.0):
+    """Spitzenbegrenzer mit Vorausschau: Verstärkung wird weich abgesenkt, die Wellenform bleibt intakt."""
+    from scipy.ndimage import minimum_filter1d
+    blk = int(SR * 0.001)                         # 1-ms-Blöcke
+    n = len(x)
+    nb = (n + blk - 1) // blk
+    pad = np.zeros((nb * blk, 2))
+    pad[:n] = x
+    peaks = np.abs(pad).reshape(nb, blk, 2).max(axis=(1, 2)) + 1e-9
+    g = np.minimum(1.0, ceiling / peaks)
+    g = minimum_filter1d(g, size=int(lookahead_ms) * 2 + 1)     # Vorausschau in beide Richtungen
+    rel = np.exp(-1.0 / max(1.0, release_ms))                   # Release über Blöcke
+    out = np.empty_like(g)
+    cur = 1.0
+    for i in range(nb):
+        cur = g[i] if g[i] < cur else cur + (g[i] - cur) * (1.0 - rel)
+        out[i] = cur
+    gain = np.interp(np.arange(n), np.arange(nb) * blk + blk / 2, out)
+    return x * gain[:, None]
+
+
 def club_master(x):
-    x = ga.highpass(x, 28.0)
-    x = x + 0.4 * ga.lowpass(x, 110.0, 2) + 0.12 * ga.bandpass(x, 2000.0, 5000.0)
+    # Tiefbass formen: Rumpeln unter ~45 Hz absenken (kleine Lautsprecher/Handys verzerren dort),
+    # dafuer Punch bei 60-140 Hz anheben. Nullphasige Filter, damit nichts ausloescht.
+    x = ga.highpass(x, 32.0, 4)
+    lo = signal.sosfiltfilt(signal.butter(2, 48.0, "low", fs=SR, output="sos"), x, axis=0)
+    punch = signal.sosfiltfilt(signal.butter(2, [60.0, 140.0], "band", fs=SR, output="sos"), x, axis=0)
+    x = x - 0.45 * lo + 0.35 * punch + 0.15 * ga.bandpass(x, 2000.0, 5000.0)
+    del lo, punch
     win = SR
     n = len(x) // win
     blocks = np.sqrt(np.mean(x[: n * win].reshape(n, win, 2) ** 2, axis=(1, 2)))
     loud = np.percentile(blocks, 95) + 1e-9
-    x *= 0.30 / loud
-    x = ga.bus_compressor(x, threshold=0.3, ratio=2.2, attack=0.005, release=0.2)
-    x = ga.soft_clip(x * 1.15, 1.5)
-    x = np.tanh(x * 1.1) / np.tanh(1.1)
-    return x * 0.97 / (np.abs(x).max() + 1e-9)
+    x *= 0.21 / loud
+    x = ga.bus_compressor(x, threshold=0.3, ratio=2.0, attack=0.006, release=0.22)
+    x = limiter(x, ceiling=0.95)
+    return x
 
 
 def render_part(spec, idx):
@@ -246,6 +275,8 @@ def render_part(spec, idx):
         sf_render.replace_layers(t, mp, verbose=False)
     tr.pre_mix = hook
     pre = tr.render()
+    del tr.layers
+    sf.write(os.path.join(PARTS, f"{idx:02d}-pre.wav"), np.clip(pre / (np.abs(pre).max() + 1e-9) * 0.9, -1, 1).astype(np.float32), SR, subtype="FLOAT")
     x = club_master(pre)
     # Übergangsfenster: Länge von mix_in und mix_out in Samples
     names = [s["name"] for s in tr.sections]
@@ -260,6 +291,22 @@ def render_part(spec, idx):
     return meta
 
 
+def _rms_env(x, win=SR // 2):
+    """Blockweise RMS-Huellkurve (0,5 s), per Sample interpoliert."""
+    n = max(1, len(x) // win)
+    blk = np.sqrt(np.mean(x[: n * win].astype(np.float64).reshape(n, win, -1) ** 2, axis=(1, 2))) + 1e-6
+    centers = (np.arange(n) + 0.5) * win
+    return np.interp(np.arange(len(x)), centers, blk)
+
+
+def _match_level(seg, ref, window, max_gain=2.0):
+    """Hebt einen duennen Abschnitt auf den Referenzpegel an (max. +6 dB), gewichtet mit window (0..1)."""
+    env = _rms_env(seg)
+    g = np.clip(ref / env, 1.0, max_gain)
+    gain = (1.0 + (g - 1.0) * window)[:, None]
+    return limiter(seg.astype(np.float64) * gain, ceiling=0.95).astype(np.float32)
+
+
 def assemble(metas):
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, "Sounds-of-Marbella-2026-Continuous-Mix.wav")
@@ -267,12 +314,21 @@ def assemble(metas):
     chapters = []
     pos = 0            # Startposition des aktuellen Teils im Mix
     tail = None        # noch nicht geschriebener Ausklang des vorherigen Teils
+    ref_body = 20 * SR
     for k, m in enumerate(metas):
         x, _ = sf.read(os.path.join(PARTS, f"{m['idx']:02d}.wav"), dtype="float32")
+        n_tail = m["n_out"] if m["beat_out"] else min(int(8.0 * SR), len(x) // 3)
         if tail is None:
             head_len = 0
         else:
             L = min(len(tail), m["n_in"], len(x) // 2)
+            # Pegelausgleich: mix_in/intro sind duenner als der Groove danach -> auf dessen
+            # Pegel anheben; die Anhebung laeuft ueber 2*L auf 1.0 zurueck.
+            R = min(2 * L, len(x) - n_tail)
+            ref_in = np.sqrt(np.mean(x[R: R + ref_body].astype(np.float64) ** 2))
+            w = np.ones(R)
+            w[L:] = np.linspace(1, 0, R - L)
+            x[:R] = _match_level(x[:R], ref_in, w)
             t = np.linspace(0, 1, L)[:, None]
             a = tail[:L]
             # Bass des ausgehenden Teils ausblenden (Hochpass mischt sich ein), Lautstärke gleichmächtig
@@ -282,15 +338,17 @@ def assemble(metas):
             fade_out = np.cos(t * np.pi / 2)
             fade_in = np.sin(t * np.pi / 2)
             mixed = a * fade_out + x[:L] * fade_in
+            mixed = limiter(mixed.astype(np.float64), ceiling=0.95).astype(np.float32)
             writer.write(np.clip(mixed, -1, 1))
-            if len(tail) > L:
-                pass  # Rest des alten Ausklangs verfällt (liegt unter dem neuen Teil)
             head_len = L
         chapters.append((pos, m["title"]))
-        n_tail = m["n_out"] if m["beat_out"] else min(int(8.0 * SR), len(x) // 3)
         body = x[head_len: len(x) - n_tail]
         writer.write(body)
         tail = x[len(x) - n_tail:]
+        if m["beat_out"]:
+            # mix_out ebenfalls auf den Pegel des Grooves davor anheben
+            ref_out = np.sqrt(np.mean(x[len(x) - n_tail - ref_body: len(x) - n_tail].astype(np.float64) ** 2))
+            tail = _match_level(tail, ref_out, np.ones(len(tail)))
         pos_next = pos + len(x) - n_tail
         pos = pos_next
     writer.write(tail)
@@ -324,7 +382,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--assemble", action="store_true")
     ap.add_argument("--only", type=int, default=None, help="nur Teil-Index rendern (1..10)")
+    ap.add_argument("--remaster", action="store_true", help="vorhandene *-pre.wav neu mastern, ohne Render")
     args = ap.parse_args()
+    if args.remaster:
+        for i in range(1, 11):
+            pre_path = os.path.join(PARTS, f"{i:02d}-pre.wav")
+            if not os.path.exists(pre_path):
+                continue
+            pre, _ = sf.read(pre_path, dtype="float64")
+            x = club_master(pre)
+            meta = json.load(open(os.path.join(PARTS, f"{i:02d}.json")))
+            sf.write(os.path.join(PARTS, f"{i:02d}.wav"), np.clip(x[: meta["n"]], -1, 1).astype(np.float32), SR, subtype="PCM_16")
+            print(f"  Teil {i} neu gemastert", flush=True)
+        args.assemble = True
     plan = build_plan()
     for i, spec in enumerate(plan, 1):
         d = album.track_duration(spec) - 10

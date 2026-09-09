@@ -198,6 +198,15 @@ DEFAULT_OCT = {"guitar": 0, "guitar_trem": 0, "flute": 12, "trumpet": 12, "mtrum
                "hook": 12, "bell": 12, "choir": 0, "ney": 12, "oud": 0}
 
 
+def clean_sub(freq, n_hold, level=0.5):
+    """Weicher Sinus-Sub mit etwas 2. Harmonischer: Gewicht ohne Rauheit."""
+    n = n_hold + int(0.12 * SR)
+    t = np.arange(n) / SR
+    x = np.sin(2 * np.pi * freq * t) + 0.12 * np.sin(2 * np.pi * 2 * freq * t)
+    env = fit(envelope(n_hold, 0.012, 0.25, 0.8, 0.10), n)
+    return to_stereo(x * env * level * 0.55, 0.0)
+
+
 class Track:
     def __init__(self, spec):
         self.spec = spec
@@ -218,7 +227,7 @@ class Track:
         self.total_bars = len(self.bars)
         self.n = int((self.bar_start[-1] + 10.0) * SR)
         self.layers = {k: np.zeros((self.n, 2)) for k in
-                       ("drums", "perc", "bass", "pad", "lead", "guitar", "atmos", "acid", "stab", "trance",
+                       ("drums", "perc", "bass", "sub", "pad", "lead", "guitar", "atmos", "acid", "stab", "trance",
                         "flute", "steel", "brass", "choir", "bell")}
         self.kick_times = []
         self.sec_start = [sum(s["bars"] for s in self.sections[:i]) for i in range(len(self.sections))]
@@ -504,9 +513,10 @@ class Track:
                                              level=blvl * (1.0 if st in (0, 8, 12) else 0.85), cutoff=P.get("bass_cut", 600.0), drive=P.get("bass_drive", 1.8)))
 
                 if P.get("sub"):
+                    # Sauberer Sinus-Sub in der Bass-Oktave (kein SoundFont-Ersatz, kein Saegezahn eine Oktave tiefer)
                     for st in (0, 8):
-                        place(self.layers["bass"], at(st), synth_bass(rng, float(midi_to_hz(bass_root)), self.step_len(cur, 7), level=P["sub"], cutoff=90.0, drive=1.0, q=0.7))
-                        self.ev("Sub", bass_root - 12, at(st), self.step_len(cur, 7), P["sub"] / 0.6)
+                        place(self.layers["sub"], at(st), clean_sub(float(midi_to_hz(bass_root)), self.step_len(cur, 7), level=P["sub"]))
+                        self.ev("Sub", bass_root, at(st), self.step_len(cur, 7), P["sub"] / 0.6)
 
                 # Drums
                 groove = P.get("drums")
@@ -702,7 +712,7 @@ class Track:
                 duck[kt:end] = np.minimum(duck[kt:end], curve[: end - kt])
         d = np.clip(lowpass(duck, 60.0), 0.35, 1.0)[:, None]
 
-        gains = dict(drums=1.0, perc=1.25, bass=1.0, pad=1.0, lead=1.05, guitar=2.4, brass=1.65, flute=1.75, steel=1.5,
+        gains = dict(drums=1.0, perc=1.25, bass=1.0, sub=1.0, pad=1.0, lead=1.05, guitar=2.4, brass=1.65, flute=1.75, steel=1.5,
                      atmos=1.8, acid=1.3, stab=1.5, trance=1.1, choir=1.05, bell=1.3)
         bl = self.beat_len(0)
 
@@ -732,7 +742,7 @@ class Track:
                 return reverb(x, ir_room, 0.16)
             if key == "drums":
                 return reverb(x, ir_room, 0.06)
-            if key == "bass":
+            if key in ("bass", "sub"):
                 return x * (0.6 + 0.4 * d) * P_all.get("bass_boost", 1.0)
             if key == "acid":
                 return reverb(delay(x, bl * 0.75, 0.3, 3, 2400.0, True, 0.18), ir_room, 0.16) * (0.7 + 0.3 * d)
@@ -1165,7 +1175,7 @@ def write_stems(track, mixv, folder, wav=False):
     os.makedirs(folder, exist_ok=True)
     total = sum(track.parts.values()) * track.dyn_curve[:, None]
     gain = 0.89 / (np.abs(total).max() + 1e-9)
-    names = {"drums": "Drums", "perc": "Percussion", "bass": "Bass", "guitar": "Guitar", "flute": "Flute", "brass": "Trumpet",
+    names = {"drums": "Drums", "perc": "Percussion", "bass": "Bass", "sub": "Sub", "guitar": "Guitar", "flute": "Flute", "brass": "Trumpet",
              "steel": "Steel Drum", "pad": "Pad", "choir": "Choir", "acid": "Acid", "stab": "Chords", "trance": "Trance FX",
              "lead": "Lead", "bell": "Bell", "atmos": "Atmosphere"}
     written = []

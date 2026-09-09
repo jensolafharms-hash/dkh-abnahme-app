@@ -19,7 +19,7 @@ SR = 44100
 # MIDI-Spurname -> (Ziel-Layer, GM-Programm, Pegelfaktor relativ zur synthetischen Spur)
 SF_MAP = {
     "Guitar": ("guitar", 24, 1.0), "Guitar Comp": ("guitar", 24, 1.0),
-    "Bass": ("bass", 33, 1.0), "Sub": ("bass", 38, 1.0),
+    "Bass": ("bass", 33, 1.0),        # "Sub" bleibt synthetisch (sauberer Sinus, eigener Layer)
     "Flute": ("flute", 73, 1.0), "Trumpet": ("brass", 56, 1.0), "Trumpet (muted)": ("brass", 59, 1.0),
     "Brass Stabs": ("brass", 61, 1.0), "Steel Drum": ("steel", 59, 1.0),   # Antworten: gestopfte Trompete statt Steel Drum
     "Chords": ("stab", 59, 1.0),                                          # Dub-Chords: Satz aus gestopften Trompeten

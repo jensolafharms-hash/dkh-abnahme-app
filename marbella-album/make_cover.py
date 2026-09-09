@@ -260,14 +260,10 @@ def center_text(d, img_w, y, s, fnt, fill, spacing=0):
 def track_data():
     rows = []
     total = 0.0
-    n = 0
     for spec in al.TRACKS:
         dur = al.track_duration(spec)
         total += dur
-        inter = spec.get("interlude", False)
-        if not inter:
-            n += 1
-        rows.append(dict(nr=n, title=spec["title"], bpm=spec["style"], key=spec["mode"], dur=dur, interlude=inter))
+        rows.append(dict(nr=int(spec["nr"]), title=spec["title"], bpm=spec["style"], key=spec["mode"], dur=dur, interlude=False))
     return rows, total
 
 

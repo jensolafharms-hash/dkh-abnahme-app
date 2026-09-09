@@ -6,7 +6,7 @@ Jeder Titel hat eine eigene Geschichte, eigene Stimme, eigenen Groove und eine
 eigene Form. Dramaturgie des Albums: Abend, Nacht, Morgen.
 
     python3 album.py                # alle Titel + Zwischenspiele nach ./out
-    python3 album.py --track 4      # nur Titel 4 (Zwischenspiele: 3.5 und 7.5)
+    python3 album.py --track 4      # nur Stück 4 (Paseo)
     python3 album.py --wav
 """
 import argparse
@@ -889,14 +889,14 @@ TRACKS = [
              S("end", 1, meter="bul", bpm=150, dyn=0.55, fx=["final_chord"], atmos=dict(cicadas=0.6)),
          ]),
 
-    dict(nr=3.5, title="Paseo", seed=3535, root=57, mode="A phrygisch-dominant", style="Zwischenspiel", interlude=True,
+    dict(nr=4, title="Paseo", seed=3535, root=57, mode="A phrygisch-dominant", style="Zwischenspiel", interlude=True,
          scale=[0, 1, 4, 5, 7, 8, 10], themes=T_PASEO,
          progs=dict(verse=["I", "bIImaj", "I", "bIImaj"]),
          sections=[S("walk", 22, bpm=92, dyn=0.6, comping="oudarp", comp_level=0.13, perc=["cajon", "darbuka"], perc_level=0.45, pad=600, pad_level=0.6,
                      melody=[mel("walk", "guitar", 0.38, ornaments=True, humanize=0.015, legato=1.1)], atmos=dict(cicadas=0.7, crickets=0.3)),
                    S("end", 1, bpm=92, dyn=0.55, fx=["final_chord"], atmos=dict(cicadas=0.7))]),
 
-    dict(nr=4, title="Cabopino Drum Circle", seed=4404, root=52, mode="E-Moll", style="Chill, tribal, Trommel-Break",
+    dict(nr=5, title="Cabopino Drum Circle", seed=4404, root=52, mode="E-Moll", style="Chill, tribal, Trommel-Break",
          scale=[0, 2, 3, 5, 7, 8, 10], themes=T_CABOPINO,
          progs=dict(verse=["i7", "VI", "III", "VII"], dance=["i7", "VII", "VI", "VII"], quiet=["iv7", "VI", "VII", "VII"]),
          sections=[
@@ -918,7 +918,7 @@ TRACKS = [
                melody=[mel("frag", "guitar", 0.32, humanize=0.02, legato=1.2)], atmos=dict(crickets=0.6)),
          ]),
 
-    dict(nr=5, title="Puerto Banús Nights", seed=5505, root=59, mode="H-Moll", style="Deep House, dann Trance",
+    dict(nr=6, title="Puerto Banús Nights", seed=5505, root=59, mode="H-Moll", style="Deep House, dann Trance",
          scale=[0, 2, 3, 5, 7, 8, 10], themes=T_BANUS,
          progs=dict(verse=["i7", "VI7", "III7", "VII"], refrain=["VI7", "VII", "i7", "III7"], bridge=["iv7", "v7", "VI7", "VI7"], climax=["VI7", "VII", "i9", "III7"]),
          sections=[
@@ -945,7 +945,7 @@ TRACKS = [
              S("end", 2, bpm=124, shift=2, dyn=0.5, fx=["final_choir"], atmos=dict(crickets=0.5)),
          ]),
 
-    dict(nr=6, title="Sierra Blanca Drift", seed=6606, root=52, mode="E dorisch, Schluss in E-Dur", style="Ballade im 6/8",
+    dict(nr=7, title="Sierra Blanca Drift", seed=6606, root=52, mode="E dorisch, Schluss in E-Dur", style="Ballade im 6/8",
          scale=[0, 2, 3, 5, 7, 9, 10], themes=T_SIERRA, units=6,
          progs=dict(verse=["i7", "IV", "i7", "bVII"], refrain=["IV", "bVII", "i7", "IV"], quiet=["ii7", "IV", "ii7", "bVII"], major=["I", "IVmaj", "V", "I"]),
          sections=[
@@ -968,7 +968,7 @@ TRACKS = [
              S("end", 1, meter="6/8", bpm=40, prog="major", dyn=0.55, fx=["final_chord"], atmos=dict(crickets=0.6)),
          ]),
 
-    dict(nr=7, title="Casco Antiguo Echoes", seed=7707, root=54, mode="Fis phrygisch", style="Shuffle House, Dub", dub=True,
+    dict(nr=8, title="Casco Antiguo Echoes", seed=7707, root=54, mode="Fis phrygisch", style="Shuffle House, Dub", dub=True,
          scale=[0, 1, 3, 5, 7, 8, 10], themes=T_CASCO,
          progs=dict(verse=["i", "bII", "i", "bvii"], refrain=["bVI", "bvii", "i", "bII"], bridge=["iv7", "bIII", "bII", "bII"]),
          sections=[
@@ -996,14 +996,14 @@ TRACKS = [
              S("end", 2, bpm=118, dyn=0.55, fx=["final_chord"], atmos=dict(cicadas=0.6)),
          ]),
 
-    dict(nr=7.5, title="Farola", seed=7575, root=52, mode="E phrygisch", style="Zwischenspiel", interlude=True,
+    dict(nr=9, title="Farola", seed=7575, root=52, mode="E phrygisch", style="Zwischenspiel", interlude=True,
          scale=[0, 1, 3, 5, 7, 8, 10], themes=T_FAROLA,
          progs=dict(verse=["i", "bII", "i", "bII"]),
          sections=[S("lantern", 16, bpm=80, dyn=0.55, pad=550, choir="oo", choir_level=0.1, choir_every=2, fx=["bell"], bell_motif=[(0, 0), (8, 7)],
                      melody=[mel("motif", "guitar", 0.32, legato=1.5, humanize=0.02)], atmos=dict(crickets=0.6)),
                    S("end", 1, bpm=80, dyn=0.5, fx=["final_choir"], atmos=dict(crickets=0.6))]),
 
-    dict(nr=8, title="La Fontanilla Sunrise", seed=1101, root=52, mode="E phrygisch", style="Chill, Aufbau zum Sonnenaufgang",
+    dict(nr=10, title="La Fontanilla Sunrise", seed=1101, root=52, mode="E phrygisch", style="Chill, Aufbau zum Sonnenaufgang",
          scale=[0, 1, 3, 5, 7, 8, 10], themes=T_FONTANILLA, pad_breathes=False,
          progs=dict(verse=["i", "bII", "bIII", "bII"], refrain=["bVI", "bvii", "i", "bII"], climax=["bVI", "bvii", "i9", "bII"]),
          sections=[
@@ -1155,7 +1155,7 @@ def write_stems(track, mixv, folder, wav=False):
 
 
 def apply_defaults(tracks):
-    phrygian = {3, 3.5, 4, 7, 7.5, 8}
+    phrygian = {3, 4, 5, 8, 9, 10}
     for spec in tracks:
         if spec["nr"] == 1:
             continue
@@ -1192,9 +1192,7 @@ apply_defaults(TRACKS)
 def slug_of(spec):
     import unicodedata
     plain = unicodedata.normalize("NFKD", spec["title"]).encode("ascii", "ignore").decode()
-    nr = spec["nr"]
-    prefix = f"{int(nr):02d}" if float(nr).is_integer() else f"{int(nr):02d}b"
-    slug = prefix + "-" + "".join(c if c.isalnum() else "-" for c in plain.lower()).strip("-")
+    slug = f"{int(spec['nr']):02d}-" + "".join(c if c.isalnum() else "-" for c in plain.lower()).strip("-")
     while "--" in slug:
         slug = slug.replace("--", "-")
     return slug
@@ -1207,7 +1205,7 @@ def track_duration(spec):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "out"))
-    ap.add_argument("--track", type=float, default=None)
+    ap.add_argument("--track", type=int, default=None)
     ap.add_argument("--wav", action="store_true")
     ap.add_argument("--export", action="store_true", help="MIDI und Stems nach out/midi und out/stems schreiben")
     ap.add_argument("--stems-wav", action="store_true", help="Stems als WAV (32 Bit float) statt MP3 320 kbit/s")

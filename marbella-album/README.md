@@ -1,27 +1,30 @@
 # DJ Jensi – Sounds of Marbella 2026
 
 Eine Sommernacht am Strand von Marbella, vom Abend bis zum Sonnenaufgang:
-acht Titel und zwei Zwischenspiele, rund 40 Minuten. Mediterran durch
+zehn Stücke, davon zwei kurze Zwischenspiele, rund 36 Minuten. Mediterran durch
 Konzertgitarre, Trompete, Palmas, Cajón, Kastagnetten, Flöte und Steel Drum,
 mit erkennbaren Anteilen von Deep House, House, Trance und Chill. Nichts
 drängt sich vor; die Musik ist für den Hintergrund gedacht.
 
 Jeder Titel hat eine eigene Geschichte, eine eigene Stimme, einen eigenen
-Groove und eine eigene Form. Alles ist im Code komponiert und gerendert, ohne
-Samples, Loops, Presets oder fremde Werke.
+Groove und eine eigene Form. Komposition und Arrangement stehen im Code.
+Gitarre, Bass, Flöte, Trompete, Streicher, Chor, Percussion, Ney und Oud
+kommen aus der frei lizenzierten Klangbibliothek FluidR3 (MIT-Lizenz) über
+FluidSynth; Kick, Hats, Acid und Atmosphären werden synthetisiert. Keine
+Loops, keine fremden Werke.
 
 | Nr | Titel | Stil | Tonart | Geschichte und Signatur |
 |----|-------|------|--------|-------------------------|
-| 1 | Playa de Nagüeles, 9 p.m. | Chill, Halftime | D dorisch | Ankunft am Strand. Wellen, Gitarre, ferner Chor, Flöte. Kein Höhepunkt, ein langsames Einatmen. |
-| 2 | La Concha Horizon | Deep House | G-Moll, andalusische Kadenz | Der Berg über der Bucht. Gedämpfte Trompete, Deep-Chords, Bläser-Break nur mit Bass. |
-| 3 | Golden Mile Breeze | Flamenco Chill, Bulería | A phrygisch-dominant | Abendspaziergang, ein Fest in der Ferne. 12er-Compás, Palmas-Solo, Chor singt den Refrain. |
-| – | Paseo | Zwischenspiel | A phrygisch-dominant | Gitarre, Zikaden, ein Cajón von weitem. |
-| 4 | Cabopino Drum Circle | Chill, tribal | E-Moll | Trommler am Strand. Melodie erst nach über einer Minute, 16 Takte Trommel-Break, alles stoppt gleichzeitig. |
-| 5 | Puerto Banús Nights | Deep House, Trance | H-Moll | Hafenlichter. Der einzige Synthesizer-Titel: Hafenglocke, Aufbau, weicher Supersaw-Höhepunkt. |
-| 6 | Sierra Blanca Drift | Ballade im 6/8 | E dorisch, Schluss in E-Dur | Wind vom Berg. Ohne House-Drums, Grillen, Höhepunkt erst am Ende mit Wechsel nach Dur. |
-| 7 | Casco Antiguo Echoes | Shuffle House, Dub | Fis phrygisch | Gassen der Altstadt. Trompete und Gitarre im Dialog, Bruch in die Stille: Trompete allein mit Echo. |
-| – | Farola | Zwischenspiel | E phrygisch | Laterne, Glocke, Grillen. |
-| 8 | La Fontanilla Sunrise | Chill, Aufbau zum Sonnenaufgang | E phrygisch | Beginnt frei mit der Gitarrenphrase von Titel 1, das Tempo zieht langsam an, Höhepunkt ganz am Ende. |
+| 1 | Playa de Nagüeles, 9 p.m. | House, Acid, Chill | D dorisch | Ankunft am Strand. Wellen, Gitarre, Ney, House-Kick ab der ersten Minute. |
+| 2 | La Concha Horizon | Deep House, Flamenco-Gitarre | G-Moll, andalusische Kadenz | Der Berg über der Bucht. Oud-Intro, Tremolo-Gitarre, Rasgueado-Break. |
+| 3 | Golden Mile Breeze | Flamenco Chill, Bulería | A phrygisch-dominant | Abendspaziergang. 12er-Compás mit Kick auf den Akzenten, Palmas-Solo, Chor singt den Refrain. |
+| 4 | Paseo | Zwischenspiel | A phrygisch-dominant | Oud, Gitarre, Zikaden, Darbuka von weitem. |
+| 5 | Cabopino Drum Circle | Chill, tribal | E-Moll | Trommler am Strand. Ney-Ruf, 16 Takte Trommel-Break, alles stoppt gleichzeitig. |
+| 6 | Puerto Banús Nights | Deep House, Trance | H-Moll | Hafenlichter. Der einzige Synthesizer-Titel: Glocke, Aufbau, weicher Supersaw-Höhepunkt. |
+| 7 | Sierra Blanca Drift | Ballade im 6/8 | E dorisch, Schluss in E-Dur | Wind vom Berg. Ohne House-Drums, Grillen, Höhepunkt erst am Ende in Dur. |
+| 8 | Casco Antiguo Echoes | Shuffle House, Dub | Fis phrygisch | Gassen der Altstadt. Trompete, Gitarre und Ney im Dialog, Bruch in die Stille. |
+| 9 | Farola | Zwischenspiel | E phrygisch | Laterne, Glocke, Grillen, Streicher. |
+| 10 | La Fontanilla Sunrise | Chill, Aufbau zum Sonnenaufgang | E phrygisch | Beginnt frei mit der Gitarrenphrase von Nr. 1, Tempo zieht an, Höhepunkt ganz am Ende. |
 
 Fertige MP3s (192 kbit/s, mit Tags und Cover) in `out/`, Trackliste in
 `out/tracklist.json`, Cover in `cover/`.
@@ -44,9 +47,11 @@ Fertige MP3s (192 kbit/s, mit Tags und Cover) in `out/`, Trackliste in
 ## Rendern
 
 ```bash
-pip install numpy scipy lameenc pillow
-python3 album.py                # alle Stücke nach ./out
-python3 album.py --track 3      # nur Titel 3 (Zwischenspiele: 3.5 und 7.5)
+pip install numpy scipy lameenc pillow mido
+apt install fluidsynth fluid-soundfont-gm
+python3 album.py --sf           # alle Stücke mit Klangbibliothek nach ./out (Standard-Fassung)
+python3 album.py --track 3 --sf # nur Stück 3
+python3 album.py                # reine Synthese-Fassung ohne Klangbibliothek
 python3 tag_mp3.py              # Tags und Cover in die MP3s
 python3 make_cover.py           # Cover nach ./cover
 ```

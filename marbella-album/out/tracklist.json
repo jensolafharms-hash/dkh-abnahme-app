@@ -38,81 +38,81 @@
       "midi": "midi/03-golden-mile-breeze.mid"
     },
     {
-      "nr": 3.5,
+      "nr": 4,
       "title": "Paseo",
       "style": "Zwischenspiel",
       "key": "A phrygisch-dominant",
       "seed": 3535,
       "interlude": true,
       "duration_s": 70.0,
-      "file": "03b-paseo.mp3",
-      "midi": "midi/03b-paseo.mid"
+      "file": "04-paseo.mp3",
+      "midi": "midi/04-paseo.mid"
     },
     {
-      "nr": 4,
+      "nr": 5,
       "title": "Cabopino Drum Circle",
       "style": "Chill, tribal, Trommel-Break",
       "key": "E-Moll",
       "seed": 4404,
       "interlude": false,
       "duration_s": 245.9,
-      "file": "04-cabopino-drum-circle.mp3",
-      "midi": "midi/04-cabopino-drum-circle.mid"
+      "file": "05-cabopino-drum-circle.mp3",
+      "midi": "midi/05-cabopino-drum-circle.mid"
     },
     {
-      "nr": 5,
+      "nr": 6,
       "title": "Puerto Banús Nights",
       "style": "Deep House, dann Trance",
       "key": "H-Moll",
       "seed": 5505,
       "interlude": false,
       "duration_s": 253.9,
-      "file": "05-puerto-banus-nights.mp3",
-      "midi": "midi/05-puerto-banus-nights.mid"
+      "file": "06-puerto-banus-nights.mp3",
+      "midi": "midi/06-puerto-banus-nights.mid"
     },
     {
-      "nr": 6,
+      "nr": 7,
       "title": "Sierra Blanca Drift",
       "style": "Ballade im 6/8",
       "key": "E dorisch, Schluss in E-Dur",
       "seed": 6606,
       "interlude": false,
       "duration_s": 241.1,
-      "file": "06-sierra-blanca-drift.mp3",
-      "midi": "midi/06-sierra-blanca-drift.mid"
+      "file": "07-sierra-blanca-drift.mp3",
+      "midi": "midi/07-sierra-blanca-drift.mid"
     },
     {
-      "nr": 7,
+      "nr": 8,
       "title": "Casco Antiguo Echoes",
       "style": "Shuffle House, Dub",
       "key": "Fis phrygisch",
       "seed": 7707,
       "interlude": false,
       "duration_s": 270.3,
-      "file": "07-casco-antiguo-echoes.mp3",
-      "midi": "midi/07-casco-antiguo-echoes.mid"
+      "file": "08-casco-antiguo-echoes.mp3",
+      "midi": "midi/08-casco-antiguo-echoes.mid"
     },
     {
-      "nr": 7.5,
+      "nr": 9,
       "title": "Farola",
       "style": "Zwischenspiel",
       "key": "E phrygisch",
       "seed": 7575,
       "interlude": true,
       "duration_s": 61.0,
-      "file": "07b-farola.mp3",
-      "midi": "midi/07b-farola.mid"
+      "file": "09-farola.mp3",
+      "midi": "midi/09-farola.mid"
     },
     {
-      "nr": 8,
+      "nr": 10,
       "title": "La Fontanilla Sunrise",
       "style": "Chill, Aufbau zum Sonnenaufgang",
       "key": "E phrygisch",
       "seed": 1101,
       "interlude": false,
       "duration_s": 258.4,
-      "file": "08-la-fontanilla-sunrise.mp3",
-      "midi": "midi/08-la-fontanilla-sunrise.mid"
+      "file": "10-la-fontanilla-sunrise.mp3",
+      "midi": "midi/10-la-fontanilla-sunrise.mid"
     }
   ]
 }

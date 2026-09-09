@@ -147,21 +147,30 @@ def techno_tweaks(spec):
         for m in P.get("melody", []):
             m["level"] *= 0.9
         if P.get("drums") == "techno":
-            P.update(hat_var=True, acid_var=True, acid_open=True, kick_out=True)
+            P.update(hat_var=True, acid_var=True, acid_open=True, kick_out=True, kick_out_every=8)
     return spec
 
 
-def techno_structure(spec):
-    """Lange Groove-Teile -> Aufbau, (Breakdown), Drop. Weniger Schleife, mehr Dramaturgie. Nach stretch() aufrufen."""
+def techno_structure(spec, bd_min=40, alternate=False):
+    """Lange Groove-Teile -> Aufbau, (Breakdown), Drop. Weniger Schleife, mehr Dramaturgie. Nach stretch() aufrufen.
+    alternate: jeder zweite Groove-Teil bekommt Breakdown + Drop, die anderen nur den Drop."""
     new = []
+    n_split = 0
     for s in spec["sections"]:
         P = s["parts"]
-        if P.get("drums") == "techno" and s["bars"] >= 24 and s["name"] not in ("mix_in", "mix_out"):
-            n_bd = 4 if s["bars"] >= 40 else 0
+        if P.get("drums") == "techno" and s["bars"] >= 16 and s["name"] not in ("mix_in", "mix_out"):
+            n_bd = 4 if s["bars"] >= bd_min and (not alternate or n_split % 2 == 0) else 0
+            n_split += 1
             main = copy.deepcopy(s)
             main["bars"] = s["bars"] - 8 - n_bd
-            main["parts"]["fx"] = sorted(set(main["parts"].get("fx", [])) | {"sweep_up", "hp_build", "roll"} | ({"cut"} if not n_bd else set()))
-            main["parts"]["fill"] = True
+            mp = main["parts"]
+            # Aufbau bleibt nackt: keine Melodie, kein Comping, Pad leiser -> weniger ist mehr
+            mp["melody"] = [m for m in mp.get("melody", []) if m["theme"] == "frag"][:1]
+            mp.pop("comping", None)
+            mp.pop("stabs", None)
+            mp["pad_level"] = mp.get("pad_level", 0.5) * 0.7
+            mp["fx"] = sorted(set(mp.get("fx", [])) | {"sweep_up", "hp_build", "roll", "gate", "siren"} | ({"cut"} if not n_bd else set()))
+            mp["fill"] = True
             new.append(main)
             if n_bd:
                 bd = copy.deepcopy(s)
@@ -179,14 +188,15 @@ def techno_structure(spec):
             drop["bars"] = 8
             drop["dyn"] = min(1.0, s["dyn"] + 0.06)
             dp = drop["parts"]
-            dp.update(hats="techno16", hats_alt="full", drum_level=1.0, fx=["impact", "crash", "downlifter", "throw"], fill=True)
+            dp.update(hats="techno16", hats_alt="full", drum_level=1.0, fx=["impact", "crash", "reverse", "downlifter", "throw", "cut"], fill=True)
+            dp.pop("comping", None)
             dp.setdefault("stabs", "dub")
             dp.setdefault("stab_steps", (2, 10))
             dp["stab_level"] = max(dp.get("stab_level", 0.12), 0.14)
             new.append(drop)
         else:
-            if P.get("drums") == "techno" and s["bars"] >= 16 and s["name"] not in ("mix_in", "mix_out"):
-                P["fx"] = sorted(set(P.get("fx", [])) | {"sweep_up", "roll", "crash"})
+            if P.get("drums") == "techno" and s["bars"] >= 8 and s["name"] not in ("mix_in", "mix_out"):
+                P["fx"] = sorted(set(P.get("fx", [])) | {"sweep_up", "roll", "crash", "cut", "throw"})
             new.append(s)
     spec["sections"] = new
     return spec

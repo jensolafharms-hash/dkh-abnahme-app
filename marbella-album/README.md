@@ -116,6 +116,22 @@ Ergebnis in `out/mix/`: WAV, FLAC, MP3 320 kbit/s, MP3 192 kbit/s (im Repo),
 MP3 64 kbit/s (WhatsApp) und `chapters.txt` mit den Kapitelmarken für die
 YouTube-Beschreibung.
 
+## Techno-Remixe (Einzeltitel)
+
+```bash
+python3 make_techno_tracks.py        # alle zehn Titel nach out/techno/
+python3 make_techno_tracks.py 3 7    # nur einzelne Nummern
+```
+
+Die zehn Album-Titel aus der Original-Partitur im Techno-Stil neu gemischt
+(126 bis 134 BPM, 3 bis 4 Minuten): Four-on-the-floor, 16tel-Hats mit
+Dropouts, rollender Synth-Bass mit wechselnden Mustern, Sinus-Sub, sich
+öffnender Acid-Filter. Jeder Groove-Teil wird zu Aufbau, Breakdown und Drop
+mit Effekten: Noise-Riser und Downlifter, Hochpass-Sweep vor dem Drop,
+Kick-Out-Takte mit Reverse-Crash, Siren, Beat-Cut, Stotter-Gate, Impact,
+Delay-Throw. Aufbauten bleiben nackt, Melodien nur in Drops und Breakdowns.
+Ergebnis: MP3 320 kbit/s mit Tags und Cover, MIDI unter `out/techno/midi/`.
+
 ## Rechte
 
 - ℗ & © 2026 DJ Jensi (Jens Olaf Harms). Alle Rechte vorbehalten, siehe `LICENSE`.

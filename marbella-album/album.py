@@ -531,7 +531,8 @@ class Track:
                 groove = P.get("drums")
                 if groove and not (P.get("drums_from", 0) > b):
                     dl = P.get("drum_level", 1.0)
-                    kick_out = P.get("kick_out") and b % 16 == 15 and not last
+                    ko_every = int(P.get("kick_out_every", 16))
+                    kick_out = P.get("kick_out") and b % ko_every == ko_every - 1 and not last
                     for st, sound, g in GROOVES[groove]:
                         if last and P.get("fill") and st >= 12 and sound == "kick" and groove in ("house", "shuffle", "deep", "techno"):
                             continue

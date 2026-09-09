@@ -302,14 +302,14 @@ def center_text(d, img_w, y, s, fnt, fill, spacing=0):
 def track_data():
     rows = []
     total = 0.0
-    # Auf dem Cover nur die Musikrichtung, keine Instrumente
-    style_on_cover = {2: "Deep House", 5: "Chill, tribal", 10: "Chill, Sunrise"}
+    # Auf dem Cover nur die Musikrichtungen als Aufzählung, keine Instrumente, keine Tonarten
+    style_on_cover = {1: "House, Acid, Chill", 2: "Deep House", 3: "Flamenco Chill, Bulería", 4: "Zwischenspiel",
+                      5: "Chill, Tribal", 6: "Deep House, Trance", 7: "Ballade, 6/8", 8: "Shuffle House, Dub",
+                      9: "Zwischenspiel", 10: "Chill, Sunrise"}
     for spec in al.TRACKS:
         dur = al.track_duration(spec)
         total += dur
-        style = style_on_cover.get(int(spec["nr"]), spec["style"])
-        key = spec["mode"].replace(" (por medio)", "")
-        rows.append(dict(nr=int(spec["nr"]), title=spec["title"], bpm=style, key=key, dur=dur, interlude=False))
+        rows.append(dict(nr=int(spec["nr"]), title=spec["title"], bpm=style_on_cover.get(int(spec["nr"]), spec["style"]), key="", dur=dur, interlude=False))
     return rows, total
 
 
@@ -393,7 +393,7 @@ def draw_tracklist(d, x0, x1, y, rows, total, fnt_nr, fnt_t, fnt_m, line_h, fill
         while xx < dots_x1:
             d.ellipse((xx, yy, xx + max(2, line_h * 0.05), yy + max(2, line_h * 0.05)), fill=dim)
             xx += int(line_h * 0.22)
-        d.text((tx, y + int(line_h * 1.12)), f"{r['bpm']}  ·  {r['key']}", font=fnt_m, fill=dim)
+        d.text((tx, y + int(line_h * 1.12)), r["bpm"] + (f"  ·  {r['key']}" if r.get("key") else ""), font=fnt_m, fill=dim)
         y += int(line_h * (1.6 if r.get("interlude") else 1.9))
     y += int(line_h * 0.2)
     d.line((x0, y, x1, y), fill=dim, width=max(1, int(line_h * 0.03)))

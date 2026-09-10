@@ -116,6 +116,18 @@ Ergebnis in `out/mix/`: WAV, FLAC, MP3 320 kbit/s, MP3 192 kbit/s (im Repo),
 MP3 64 kbit/s (WhatsApp) und `chapters.txt` mit den Kapitelmarken für die
 YouTube-Beschreibung.
 
+## Techno Long-Play (57 Minuten, durchgehend)
+
+```bash
+python3 mix.py --techno    # rendert die Techno-Fassung des Mixes nach out/mix-techno/
+```
+
+Gleicher Ablauf wie der Continuous Mix, aber 126 bis 134 BPM, Techno-Groove,
+rollender Synth-Bass, Effekte und pro Groove-Teil mehrere Bögen aus Aufbau,
+Breakdown und Drop (`techno_structure`). Paseo und Farola laufen mit Kick
+durch, es gibt keine beatlose Stelle. Ergebnis: WAV, FLAC, MP3 320 kbit/s,
+MP3 192 kbit/s und 64 kbit/s (im Repo) und `chapters.txt`.
+
 ## Techno-Remixe (Einzeltitel)
 
 ```bash

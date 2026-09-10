@@ -151,18 +151,29 @@ def techno_tweaks(spec):
     return spec
 
 
-def techno_structure(spec, bd_min=40, alternate=False):
-    """Lange Groove-Teile -> Aufbau, (Breakdown), Drop. Weniger Schleife, mehr Dramaturgie. Nach stretch() aufrufen.
-    alternate: jeder zweite Groove-Teil bekommt Breakdown + Drop, die anderen nur den Drop."""
+def techno_structure(spec, bd_min=40, alternate=False, chunk=24):
+    """Groove-Teile -> Boegen aus Aufbau, (Breakdown), Drop. Lange Teile werden in Stuecke von hoechstens
+    `chunk` Takten geteilt, jedes Stueck bekommt seinen eigenen Bogen. alternate: nur jeder zweite Bogen
+    bekommt den Breakdown. Nach stretch() aufrufen."""
     new = []
     n_split = 0
     for s in spec["sections"]:
         P = s["parts"]
-        if P.get("drums") == "techno" and s["bars"] >= 16 and s["name"] not in ("mix_in", "mix_out"):
-            n_bd = 4 if s["bars"] >= bd_min and (not alternate or n_split % 2 == 0) else 0
+        if not (P.get("drums") == "techno" and s["bars"] >= 16 and s["name"] not in ("mix_in", "mix_out")):
+            if P.get("drums") == "techno" and s["bars"] >= 8 and s["name"] not in ("mix_in", "mix_out"):
+                P["fx"] = sorted(set(P.get("fx", [])) | {"sweep_up", "roll", "crash", "cut", "throw"})
+            new.append(s)
+            continue
+        n_pieces = max(1, int(round(s["bars"] / chunk)))
+        base, rest = divmod(s["bars"], n_pieces)
+        pieces = [base + (1 if i < rest else 0) for i in range(n_pieces)]
+        for k, bars in enumerate(pieces):
+            name = s["name"] if n_pieces == 1 else f"{s['name']}_{k + 1}"
+            n_bd = 4 if bars >= bd_min and (not alternate or n_split % 2 == 0) else 0
             n_split += 1
             main = copy.deepcopy(s)
-            main["bars"] = s["bars"] - 8 - n_bd
+            main["name"] = name
+            main["bars"] = max(4, bars - 8 - n_bd)
             mp = main["parts"]
             # Aufbau bleibt nackt: keine Melodie, kein Comping, Pad leiser -> weniger ist mehr
             mp["melody"] = [m for m in mp.get("melody", []) if m["theme"] == "frag"][:1]
@@ -174,17 +185,17 @@ def techno_structure(spec, bd_min=40, alternate=False):
             new.append(main)
             if n_bd:
                 bd = copy.deepcopy(s)
-                bd["name"] = s["name"] + "_bd"
+                bd["name"] = name + "_bd"
                 bd["bars"] = n_bd
                 bd["dyn"] = min(s["dyn"], 0.8)
                 bp = bd["parts"]
-                for k in ("drums", "hats", "hats_alt", "perc", "stabs", "ride", "fill", "kick_out"):
-                    bp.pop(k, None)
+                for key in ("drums", "hats", "hats_alt", "perc", "stabs", "ride", "fill", "kick_out"):
+                    bp.pop(key, None)
                 bp.update(bass="one", bass_level=0.7, sub=0.4, acid=max(bp.get("acid", 0.12), 0.18), acid_cut=300.0,
                           acid_open=True, fx=["riser", "siren", "cut", "gate"])
                 new.append(bd)
             drop = copy.deepcopy(s)
-            drop["name"] = s["name"] + "_drop"
+            drop["name"] = name + "_drop"
             drop["bars"] = 8
             drop["dyn"] = min(1.0, s["dyn"] + 0.06)
             dp = drop["parts"]
@@ -194,10 +205,6 @@ def techno_structure(spec, bd_min=40, alternate=False):
             dp.setdefault("stab_steps", (2, 10))
             dp["stab_level"] = max(dp.get("stab_level", 0.12), 0.14)
             new.append(drop)
-        else:
-            if P.get("drums") == "techno" and s["bars"] >= 8 and s["name"] not in ("mix_in", "mix_out"):
-                P["fx"] = sorted(set(P.get("fx", [])) | {"sweep_up", "roll", "crash", "cut", "throw"})
-            new.append(s)
     spec["sections"] = new
     return spec
 
@@ -338,7 +345,7 @@ def build_plan(techno=False):
         if spec["nr"] not in (9,) or techno:
             stretch(spec, target)
         if techno:
-            techno_structure(spec)
+            techno_structure(spec, bd_min=20, alternate=True)
         out.append(spec)
     return out
 

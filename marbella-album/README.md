@@ -131,6 +131,8 @@ mit Effekten: Noise-Riser und Downlifter, Hochpass-Sweep vor dem Drop,
 Kick-Out-Takte mit Reverse-Crash, Siren, Beat-Cut, Stotter-Gate, Impact,
 Delay-Throw. Aufbauten bleiben nackt, Melodien nur in Drops und Breakdowns.
 Ergebnis: MP3 320 kbit/s mit Tags und Cover, MIDI unter `out/techno/midi/`.
+Rückseite und CD-Inlay der Techno-Edition: `python3 make_cover.py --techno`
+(`cover/back-techno.png`, `cover/back-techno-1400.jpg`, `cover/cd-inlay-back-techno.png`).
 
 ## Rechte
 

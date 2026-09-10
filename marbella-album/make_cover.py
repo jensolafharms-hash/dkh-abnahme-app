@@ -27,6 +27,11 @@ TITLE_A = "Sounds of"
 TITLE_B = "Marbella"
 YEAR = "2026"
 TAGLINE = "Una noche de verano  ·  Flamenco Chill  ·  Deep House  ·  Trance"
+EDITION = "album"   # "album" oder "techno" (Techno-Remixe, --techno)
+
+
+def edition_title():
+    return f"{TITLE_A} {TITLE_B} {YEAR}" + ("  ·  Techno Mix" if EDITION == "techno" else "")
 
 IMPRESSUM = {
     "Künstler": "DJ Jensi",
@@ -309,6 +314,20 @@ def track_data():
     style_on_cover = {1: "House, Acid, Chill", 2: "Deep House", 3: "Flamenco Chill, Bulería", 4: "Interlude",
                       5: "Chill, Tribal", 6: "Deep House, Trance", 7: "Ballad, 6/8", 8: "Shuffle House, Dub",
                       9: "Interlude", 10: "Chill, Sunrise"}
+    if EDITION == "techno":
+        import make_techno_tracks as mt
+        from mix import TECHNO_BPM
+        style_techno = {1: "Techno, Acid", 2: "Deep Techno", 3: "Techno, Flamenco", 4: "Interlude, Techno",
+                        5: "Tribal Techno", 6: "Techno, Trance", 7: "Melodic Techno", 8: "Techno, Dub",
+                        9: "Interlude, Techno", 10: "Techno, Sunrise"}
+        for nr in range(1, 11):
+            spec = mt.techno_spec(nr)
+            dur = al.track_duration(spec) - 6.0          # Export: Taktende + 4 s Ausklang
+            total += dur
+            b0, b1 = TECHNO_BPM[nr]
+            bpm = f"{b0} BPM" if b0 == b1 else f"{b0}–{b1} BPM"
+            rows.append(dict(nr=nr, title=spec["title"].replace(" (Techno Mix)", ""), bpm=f"{style_techno[nr]}  ·  {bpm}", key="", dur=dur, interlude=False))
+        return rows, total
     for spec in al.TRACKS:
         dur = al.track_duration(spec)
         total += dur
@@ -416,12 +435,14 @@ def dark_panel(img, box, alpha=215, radius=40):
 
 
 def impressum_lines():
+    what = "Techno remixes of the album Sounds of Marbella 2026. All titles written, arranged, produced and remixed by DJ Jensi." \
+        if EDITION == "techno" else "All titles written, arranged, produced and mixed by DJ Jensi."
     return [
-        "All titles written, arranged, produced and mixed by DJ Jensi.",
+        what,
         "",
         f"Released by {IMPRESSUM['Künstler']}  ·  Manufacturer: {IMPRESSUM['Verantwortlich']}, {IMPRESSUM['Anschrift']}, {IMPRESSUM['Kontakt']}",
         "",
-        "℗ & © 2026 DJ Jensi  ·  Sounds of Marbella 2026  ·  All rights reserved.",
+        f"℗ & © 2026 DJ Jensi  ·  {edition_title()}  ·  All rights reserved.",
         "Unauthorised copying, hiring, lending, public performance and broadcasting of this recording prohibited.",
     ]
 
@@ -448,7 +469,7 @@ def _back_text(img, S):
     m = int(S * 0.10)
     draw_artist_mirrored_j(img, S // 2, int(S * 0.075), int(S * 0.062))
     d = ImageDraw.Draw(img)
-    center_text(d, S, int(S * 0.165), f"{TITLE_A} {TITLE_B} {YEAR}".upper(), font(F_SANS_B, S * 0.030), (255, 240, 225), spacing=int(S * 0.006))
+    center_text(d, S, int(S * 0.165), edition_title().upper(), font(F_SANS_B, S * (0.025 if EDITION == "techno" else 0.030)), (255, 240, 225), spacing=int(S * 0.006))
     d.line((m, int(S * 0.215), S - m, int(S * 0.215)), fill=(150, 130, 180), width=3)
 
     rows, total = track_data()
@@ -493,7 +514,7 @@ def make_inlay(dpi=300):
         sp = Image.new("RGBA", (H, spine), (0, 0, 0, 0))
         sd = ImageDraw.Draw(sp)
         fnt = font(F_SANS_B, spine * 0.42)
-        s = f"DJ JENSI     ·     SOUNDS OF MARBELLA {YEAR}"
+        s = f"DJ JENSI     ·     SOUNDS OF MARBELLA {YEAR}" + ("  ·  TECHNO MIX" if EDITION == "techno" else "")
         w, h, l, t = text_size(fnt, s)
         sd.text(((H - w) // 2 - l, (spine - h) // 2 - t), s, font=fnt, fill=(240, 230, 250, 255))
         sp = sp.rotate(90 if sx == 0 else -90, expand=True)
@@ -502,7 +523,7 @@ def make_inlay(dpi=300):
     x0, x1 = spine + int(6 * mm), W - spine - int(6 * mm)
     draw_artist_mirrored_j(img, W // 2, int(4 * mm), int(9 * mm))
     d = ImageDraw.Draw(img)
-    center_text(d, W, int(15.5 * mm), f"{TITLE_A} {TITLE_B} {YEAR}".upper(), font(F_SANS_B, 3.4 * mm), (255, 240, 225), spacing=int(0.6 * mm))
+    center_text(d, W, int(15.5 * mm), edition_title().upper(), font(F_SANS_B, (2.8 if EDITION == "techno" else 3.4) * mm), (255, 240, 225), spacing=int(0.6 * mm))
     d.line((x0, int(20.5 * mm), x1, int(20.5 * mm)), fill=(150, 130, 180), width=2)
     rows, total = track_data()
     lh = int(2.9 * mm)
@@ -521,8 +542,19 @@ def make_inlay(dpi=300):
 
 
 def main():
+    global EDITION
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover")
     os.makedirs(out, exist_ok=True)
+    if "--techno" in sys.argv:
+        # Nur Rueckseite und Inlay der Techno-Edition; die Vorderseite bleibt
+        EDITION = "techno"
+        back = make_back()
+        back.save(os.path.join(out, "back-techno.png"), dpi=(300, 300))
+        back.resize((1400, 1400), Image.LANCZOS).save(os.path.join(out, "back-techno-1400.jpg"), quality=92)
+        inlay = make_inlay()
+        inlay.save(os.path.join(out, "cd-inlay-back-techno.png"), dpi=(300, 300))
+        print("Techno-Rueckseite geschrieben nach", out)
+        return
     front = make_front()
     front.save(os.path.join(out, "front.png"), dpi=(300, 300))
     front.resize((1400, 1400), Image.LANCZOS).save(os.path.join(out, "front-1400.jpg"), quality=92)
